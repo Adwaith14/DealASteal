@@ -1,0 +1,19 @@
+@import 'tailwindcss';
+
+/*
+  Theme aligned with grabthedeals.com public CSS tokens:
+  light bg, slate header #232F3E, primary red ~hsl(0 84% 60%), accent #FF9900.
+*/
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply min-h-dvh bg-[#f5f5f5] text-gray-900 antialiased;
+  }
+
+  ::selection {
+    @apply bg-amber-200/80 text-gray-900;
+  }
+}
