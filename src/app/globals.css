@@ -16,4 +16,36 @@
   ::selection {
     @apply bg-amber-200/80 text-gray-900;
   }
+
+  /* Thin, styled scrollbars for webkit browsers */
+  ::-webkit-scrollbar {
+    height: 4px;
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+  }
+}
+
+@layer utilities {
+  .scrollbar-deals::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  .scrollbar-deals::-webkit-scrollbar-track {
+    background: #e5e7eb;
+    border-radius: 9999px;
+  }
+
+  .scrollbar-deals::-webkit-scrollbar-thumb {
+    background: #9ca3af;
+    border-radius: 9999px;
+  }
 }

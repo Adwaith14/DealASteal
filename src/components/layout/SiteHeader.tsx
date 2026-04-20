@@ -42,8 +42,8 @@ export function SiteHeader({ initialSearchQuery }: SiteHeaderProps) {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-50 border-b border-gray-200 bg-white shadow-sm">
-      <div className="mx-auto flex max-w-[1400px] flex-col gap-3 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:gap-8 lg:px-8">
+    <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 shadow-sm backdrop-blur">
+      <div className="mx-auto flex max-w-[920px] flex-col gap-3 px-3 py-3 sm:px-4 lg:flex-row lg:items-center lg:gap-5 lg:px-5">
         <a href="/" className="flex shrink-0 items-center gap-2.5 lg:min-w-[11rem]">
           <span
             className="flex size-10 items-center justify-center rounded-lg bg-red-600 text-white shadow-sm"
@@ -59,7 +59,7 @@ export function SiteHeader({ initialSearchQuery }: SiteHeaderProps) {
               />
             </svg>
           </span>
-          <span className="text-xl font-extrabold tracking-tight text-gray-900">
+          <span className="text-lg font-extrabold tracking-tight text-gray-900 sm:text-xl">
             DealA<span className="text-red-600">Steal</span>
           </span>
         </a>

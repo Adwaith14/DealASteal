@@ -110,6 +110,33 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../src/app/api/deals/hot/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/deals/hot">> = Specific
+  const handler = {} as typeof import("../../src/app/api/deals/hot/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/api/deals/latest/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/deals/latest">> = Specific
+  const handler = {} as typeof import("../../src/app/api/deals/latest/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/api/deals/top/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/deals/top">> = Specific
+  const handler = {} as typeof import("../../src/app/api/deals/top/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../src/app/api/ingest/deals/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/ingest/deals">> = Specific
