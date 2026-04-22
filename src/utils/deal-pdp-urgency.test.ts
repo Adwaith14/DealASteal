@@ -18,6 +18,7 @@ function baseDeal(overrides: Partial<Deal> = {}): Deal {
     expires_at: null,
     created_at: '2020-01-01T00:00:00.000Z',
     category_slug: null,
+    ingest_external_id: null,
     ...overrides,
   };
 }

@@ -50,6 +50,7 @@ function sampleDeal(overrides: Partial<Deal> = {}): Deal {
     expires_at: null,
     created_at: '2026-01-01T00:00:00.000Z',
     category_slug: null,
+    ingest_external_id: null,
     ...overrides,
   };
 }
@@ -326,6 +327,29 @@ describe('getActiveDealById', () => {
     if (!result.ok && result.error === 'database_error') {
       expect(result.message).toContain('deals.category_slug');
       expect(result.message).toContain('20260415190000_add_category_slug_to_deals.sql');
+      expect(result.code).toBe('42703');
+    }
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('maps undefined ingest_external_id column on detail fetch to a migration hint', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    builder.maybeSingle.mockResolvedValue({
+      data: null,
+      error: {
+        message: 'column deals.ingest_external_id does not exist',
+        code: '42703',
+      },
+    });
+
+    const { getActiveDealById } = await import('./deals');
+    const result = await getActiveDealById('550e8400-e29b-41d4-a716-446655440000');
+
+    expect(result.ok).toBe(false);
+    if (!result.ok && result.error === 'database_error') {
+      expect(result.message).toContain('deals.ingest_external_id');
+      expect(result.message).toContain('20260422150000_deals_ingest_external_id.sql');
       expect(result.code).toBe('42703');
     }
 

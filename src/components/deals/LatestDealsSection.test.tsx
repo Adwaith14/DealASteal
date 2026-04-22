@@ -23,6 +23,7 @@ function buildDeal(id: string): Deal {
     is_active: true,
     expires_at: null,
     category_slug: null,
+    ingest_external_id: null,
   };
 }
 

@@ -23,6 +23,7 @@
     "vitest.d.ts",
     "vitest.config.ts",
     "vitest.setup.ts",
+    "scripts/**/*.ts",
     "src/**/*.ts",
     "src/**/*.tsx",
     ".next/types/**/*.ts"

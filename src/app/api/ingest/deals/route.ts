@@ -37,11 +37,17 @@ export async function POST(request: NextRequest) {
     const { discount_percentage: _generatedPct, ...insertPayload } =
       validatedData as DealInsertRow;
 
-    const { data, error } = await supabaseAdmin
-      .from('deals')
-      .insert(insertPayload)
-      .select()
-      .single();
+    const useUpsert = Boolean(parsed.data.ingest_external_id?.trim());
+
+    const query = useUpsert
+      ? supabaseAdmin
+          .from('deals')
+          .upsert(insertPayload, { onConflict: 'ingest_external_id' })
+          .select()
+          .single()
+      : supabaseAdmin.from('deals').insert(insertPayload).select().single();
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('[DealASteal] ingest deals insert failed:', error);
@@ -53,7 +59,8 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      return NextResponse.json(data as Deal, { status: 201 });
+      const status = useUpsert ? 200 : 201;
+      return NextResponse.json(data as Deal, { status });
     } catch (serializeCause) {
       console.error('[DealASteal] ingest deals response serialization failed:', serializeCause);
       const body: Record<string, unknown> = { error: 'Internal Server Error' };

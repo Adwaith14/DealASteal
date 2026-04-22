@@ -173,6 +173,7 @@ describe('POST /api/ingest/deals', () => {
       expires_at: null,
       created_at: '2026-01-01T00:00:00.000Z',
       category_slug: null,
+      ingest_external_id: null,
     };
 
     const insertMock = vi.fn(() => ({
@@ -217,6 +218,63 @@ describe('POST /api/ingest/deals', () => {
     expect(insertedRow as Record<string, unknown>).not.toHaveProperty('id');
     expect(insertedRow as Record<string, unknown>).not.toHaveProperty(
       'created_at'
+    );
+  });
+
+  it('returns 200 and uses upsert when ingest_external_id is set', async () => {
+    const upserted: Deal = {
+      id: '660e8400-e29b-41d4-a716-446655440002',
+      merchant_id: '550e8400-e29b-41d4-a716-446655440000',
+      title: 'Deal',
+      description: null,
+      original_price: 100,
+      discount_price: 80,
+      discount_percentage: 20,
+      affiliate_url: 'https://example.com',
+      image_url: null,
+      is_loot_deal: false,
+      is_active: true,
+      expires_at: null,
+      created_at: '2026-01-01T00:00:00.000Z',
+      category_slug: null,
+      ingest_external_id: 'dummyjson:1',
+    };
+
+    const upsertMock = vi.fn(() => ({
+      select: vi.fn(() => ({
+        single: vi.fn(() =>
+          Promise.resolve({ data: upserted, error: null })
+        ),
+      })),
+    }));
+
+    mockFrom.mockReturnValue({
+      upsert: upsertMock,
+    });
+
+    const request = new NextRequest('http://localhost/api/ingest/deals', {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer test-ingestion-key',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        merchant_id: '550e8400-e29b-41d4-a716-446655440000',
+        title: 'Deal',
+        original_price: 100,
+        discount_price: 80,
+        affiliate_url: 'https://example.com',
+        is_loot_deal: false,
+        ingest_external_id: 'dummyjson:1',
+      }),
+    });
+
+    const response = await POST(request);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(upserted);
+    expect(upsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({ ingest_external_id: 'dummyjson:1' }),
+      { onConflict: 'ingest_external_id' }
     );
   });
 });

@@ -8,39 +8,11 @@ import {
 import { isDealCategorySlug } from '@/constants/deal-categories';
 import { getSupabaseServerAnon } from '@/lib/supabase/server';
 import type { Deal } from '@/types/database.types';
+import { logPostgrestError } from './log-postgrest-error';
+import { mapDealsPostgrestError } from './map-deals-postgrest-user-message';
 
 const ACTIVE_DEALS_SELECT =
-  'id, merchant_id, title, description, original_price, discount_price, discount_percentage, affiliate_url, image_url, is_loot_deal, is_active, expires_at, created_at, category_slug' as const;
-
-const CATEGORY_SLUG_MIGRATION_FILE =
-  'supabase/migrations/20260415190000_add_category_slug_to_deals.sql';
-
-/**
- * Postgres ``42703`` = undefined_column. The app always selects ``category_slug``;
- * hosted DBs must run the migration above (see file path in message).
- */
-function isMissingCategorySlugColumn(error: {
-  message?: string | null;
-  code?: string | null;
-}): boolean {
-  const msg = typeof error.message === 'string' ? error.message.toLowerCase() : '';
-  return error.code === '42703' && msg.includes('category_slug');
-}
-
-function mapDealsPostgrestError(
-  fallback: string,
-  error: { message?: string | null; code?: string | null }
-): string {
-  if (isMissingCategorySlugColumn(error)) {
-    return (
-      `Your database is missing column deals.category_slug (Postgres ${error.code}). ` +
-      `Open Supabase → SQL Editor, paste and run ${CATEGORY_SLUG_MIGRATION_FILE}, then reload. ` +
-      `Alternatively run: supabase db push`
-    );
-  }
-  const m = typeof error.message === 'string' && error.message.trim().length > 0;
-  return m ? String(error.message) : fallback;
-}
+  'id, merchant_id, title, description, original_price, discount_price, discount_percentage, affiliate_url, image_url, is_loot_deal, is_active, expires_at, created_at, category_slug, ingest_external_id' as const;
 
 const DEFAULT_PAGE_SIZE = 24;
 const MAX_PAGE_SIZE = 48;
@@ -155,15 +127,6 @@ function normalizePagination(query: ActiveDealsQuery | undefined): {
 
 function escapeIlikePattern(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
-}
-
-function logPostgrestError(scope: string, error: { message: string; code?: string; details?: string; hint?: string }) {
-  console.error(`[DealASteal] ${scope}:`, {
-    message: error.message,
-    code: error.code,
-    details: error.details,
-    hint: error.hint,
-  });
 }
 
 /**

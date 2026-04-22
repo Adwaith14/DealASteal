@@ -27,6 +27,8 @@ export interface Deal {
   created_at: string;
   /** Browse facet slug (``tech``, ``laptops``, …). Nullable until backfilled or set on ingest. */
   category_slug: string | null;
+  /** When set, ingest upserts on this key (e.g. ``dummyjson:123``). */
+  ingest_external_id: string | null;
 }
 
 export type CouponDiscountType = 'percent' | 'fixed';

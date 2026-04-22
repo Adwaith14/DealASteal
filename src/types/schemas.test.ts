@@ -81,4 +81,58 @@ describe('DealIngestSchema', () => {
 
     expect(result.success).toBe(false);
   });
+
+  it('accepts optional ingest_external_id', () => {
+    const result = DealIngestSchema.safeParse({
+      merchant_id: '550e8400-e29b-41d4-a716-446655440000',
+      title: 'x',
+      original_price: 10,
+      discount_price: 5,
+      affiliate_url: 'https://example.com',
+      is_loot_deal: false,
+      ingest_external_id: 'vendor:abc-1',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects empty ingest_external_id', () => {
+    const result = DealIngestSchema.safeParse({
+      merchant_id: '550e8400-e29b-41d4-a716-446655440000',
+      title: 'x',
+      original_price: 10,
+      discount_price: 5,
+      affiliate_url: 'https://example.com',
+      is_loot_deal: false,
+      ingest_external_id: '',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts optional description, image_url, expires_at', () => {
+    const result = DealIngestSchema.safeParse({
+      merchant_id: '550e8400-e29b-41d4-a716-446655440000',
+      title: 'x',
+      original_price: 10,
+      discount_price: 5,
+      affiliate_url: 'https://example.com',
+      is_loot_deal: false,
+      description: 'Short body',
+      image_url: 'https://example.com/a.jpg',
+      expires_at: '2027-06-01T12:00:00.000Z',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects invalid expires_at string', () => {
+    const result = DealIngestSchema.safeParse({
+      merchant_id: '550e8400-e29b-41d4-a716-446655440000',
+      title: 'x',
+      original_price: 10,
+      discount_price: 5,
+      affiliate_url: 'https://example.com',
+      is_loot_deal: false,
+      expires_at: 'not-a-date',
+    });
+    expect(result.success).toBe(false);
+  });
 });

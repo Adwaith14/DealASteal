@@ -141,7 +141,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   }
 
   /* ── Full homepage (no active search) ── */
-  const [expiringDeals, couponDeals, topResult, hotResult, latestResult] = await Promise.all([
+  const [expiringSection, couponSection, topResult, hotResult, latestResult] = await Promise.all([
     getExpiringDeals(20),
     getCouponDeals(16),
     getTopDeals({ limit: 6 }),
@@ -149,8 +149,16 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     getLatestDeals({ page: 1, pageSize: 36 }),
   ]);
 
+  const sectionFetchError =
+    expiringSection.fetchError ??
+    couponSection.fetchError ??
+    topResult.fetchError ??
+    hotResult.fetchError ??
+    latestResult.fetchError ??
+    null;
+
   const couponCodeMap = new Map<string, string>(
-    couponDeals.map((d) => [d.id, d.coupon_code])
+    couponSection.deals.map((d) => [d.id, d.coupon_code])
   );
 
   return (
@@ -159,12 +167,22 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       <AnnouncementBar />
 
       <main className="mx-auto w-full max-w-[920px] flex-1 px-3 py-2 sm:px-4 lg:px-5">
+        {sectionFetchError ? (
+          <div
+            role="alert"
+            className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-950 sm:px-4"
+          >
+            <p className="font-semibold">Some deal sections could not load.</p>
+            <p className="mt-1 text-xs leading-relaxed sm:text-sm">{sectionFetchError}</p>
+          </div>
+        ) : null}
+
         {/* ── Expiring Soon ── */}
         <HorizontalDealScroll
           icon="⏱"
           title="Expiring Soon"
           subtitle="Grab them before they're gone"
-          deals={expiringDeals}
+          deals={expiringSection.deals}
           origin={origin}
         />
 
@@ -173,7 +191,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           icon="🏷"
           title="Coupon Deals"
           subtitle="Use code at checkout"
-          deals={couponDeals}
+          deals={couponSection.deals}
           origin={origin}
           couponCodes={couponCodeMap}
         />

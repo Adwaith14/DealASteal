@@ -2,6 +2,9 @@
  "scripts": {
   "clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true});\"",
   "db:supabase-sql": "node scripts/print-supabase-category-sql.cjs",
+  "ingest:dummyjson": "tsx --tsconfig tsconfig.json scripts/dummyjson-ingest.ts",
+  "ingest:dummyjson:dry": "tsx --tsconfig tsconfig.json scripts/dummyjson-ingest.ts --dry-run --take=5",
+  "demo:reset-deals": "tsx --tsconfig tsconfig.json scripts/reset-and-seed-demo-deals.ts",
   "dev": "next dev",
   "dev:3010": "next dev -p 3010",
   "dev:clean": "npm run clean && next dev",
@@ -21,7 +24,9 @@
   "tailwindcss": "^4.2.2",
   "zod": "^4.3.6"
  },
- "devDependencies": {
+  "devDependencies": {
+  "dotenv": "^16.6.1",
+  "tsx": "^4.20.5",
   "@testing-library/jest-dom": "^6.9.1",
   "@testing-library/react": "^16.3.2",
   "@types/jsdom": "^28.0.1",

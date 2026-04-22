@@ -22,6 +22,13 @@ function buildImageRemotePatterns(): RemotePattern[] {
     }
   }
 
+  // DummyJSON demo ingest (`scripts/dummyjson-ingest.ts`) uses this CDN for thumbnails.
+  patterns.push({
+    protocol: 'https',
+    hostname: 'cdn.dummyjson.com',
+    pathname: '/**',
+  });
+
   return patterns;
 }
 
