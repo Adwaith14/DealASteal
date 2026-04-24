@@ -8,7 +8,7 @@ import { DealSearchField } from '@/components/deals/DealSearchField';
 function SearchFallback() {
   return (
     <div
-      className="h-11 w-full max-w-2xl animate-pulse rounded-lg border border-gray-200 bg-[#f5f5f5]"
+      className="h-11 w-full animate-pulse rounded-lg border border-gray-300 bg-white"
       aria-hidden
     />
   );
@@ -42,58 +42,64 @@ export function SiteHeader({ initialSearchQuery }: SiteHeaderProps) {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 shadow-sm backdrop-blur">
-      <div className="mx-auto flex max-w-[920px] flex-col gap-3 px-3 py-3 sm:px-4 lg:flex-row lg:items-center lg:gap-5 lg:px-5">
-        <a href="/" className="flex shrink-0 items-center gap-2.5 lg:min-w-[11rem]">
-          <span
-            className="flex size-10 items-center justify-center rounded-lg bg-red-600 text-white shadow-sm"
-            aria-hidden
+    <header className="sticky top-0 z-50 w-full min-w-0 max-w-full border-b border-gray-200 bg-white">
+      <div className="mx-auto flex min-w-0 w-full max-w-[2200px] flex-col gap-3 px-4 py-3 sm:px-5 lg:flex-row lg:items-center lg:gap-6">
+        <div className="flex items-center justify-between gap-3 lg:contents lg:gap-0">
+          <a
+            href="/"
+            className="order-1 flex shrink-0 items-center gap-2.5 lg:order-1 lg:min-w-[11rem]"
           >
-            <svg className="size-6" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path
-                d="M4 7V5a2 2 0 012-2h2m0 0h8m0 0h2a2 2 0 012 2v2M4 7h16M4 7l1 12a2 2 0 002 1.9h10a2 2 0 002-1.9L20 7M9 11v2m6-2v2"
-                stroke="currentColor"
-                strokeWidth={1.75}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </span>
-          <span className="text-lg font-extrabold tracking-tight text-gray-900 sm:text-xl">
-            DealA<span className="text-red-600">Steal</span>
-          </span>
-        </a>
+            <span
+              className="flex size-10 items-center justify-center rounded-lg bg-[#D32F2F] text-white shadow-sm"
+              aria-hidden
+            >
+              <svg className="size-6" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path
+                  d="M4 7V5a2 2 0 012-2h2m0 0h8m0 0h2a2 2 0 012 2v2M4 7h16M4 7l1 12a2 2 0 002 1.9h10a2 2 0 002-1.9L20 7M9 11v2m6-2v2"
+                  stroke="currentColor"
+                  strokeWidth={1.75}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
+            <span className="text-lg font-extrabold tracking-tight text-gray-900 sm:text-xl">
+              DealA<span className="text-[#D32F2F]">Steal</span>
+            </span>
+          </a>
 
-        <div className="order-3 min-w-0 w-full flex-1 lg:order-2 lg:flex lg:justify-center">
+          <nav
+            className="order-2 flex shrink-0 flex-wrap items-center justify-end gap-0.5 sm:gap-1 lg:order-3"
+            aria-label="Main navigation"
+          >
+            {nav.map(({ href, label }) => {
+              const active = isNavActive(pathname, href, label);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`rounded-md px-2.5 py-2 text-sm font-semibold transition sm:px-3 ${
+                    active
+                      ? 'text-[#D32F2F]'
+                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  {label}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+
+        <div className="order-3 min-w-0 w-full lg:order-2 lg:flex lg:flex-1 lg:justify-center">
           <Suspense fallback={<SearchFallback />}>
             <DealSearchField
               initialQuery={initialSearchQuery}
-              className="mx-auto w-full max-w-2xl lg:mx-0"
+              variant="nav"
+              className="w-full max-w-2xl"
             />
           </Suspense>
         </div>
-
-        <nav
-          className="order-2 flex flex-wrap items-center justify-center gap-1 sm:justify-end lg:order-3 lg:ml-auto lg:shrink-0"
-          aria-label="Main navigation"
-        >
-          {nav.map(({ href, label }) => {
-            const active = isNavActive(pathname, href, label);
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`rounded-md px-3 py-2 text-sm font-semibold transition ${
-                  active
-                    ? 'bg-red-50 text-red-700 ring-1 ring-red-100'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                }`}
-              >
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
       </div>
     </header>
   );

@@ -39,14 +39,6 @@ const nextConfig: NextConfig = {
   },
   /** Fewer moving parts in dev; avoids flaky route indicator + devtools coupling. */
   devIndicators: false,
-  /**
-   * Segment explorer injects RSC dev-only modules that can desync during rapid HMR,
-   * producing "SegmentViewNode … not in React Client Manifest" and broken chunk ids.
-   * @see https://github.com/vercel/next.js/pull/81737
-   */
-  experimental: {
-    devtoolSegmentExplorer: false,
-  },
 };
 
 export default nextConfig;

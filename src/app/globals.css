@@ -7,10 +7,15 @@
 @layer base {
   html {
     scroll-behavior: smooth;
+    overflow-x: clip;
+    max-width: 100%;
   }
 
   body {
-    @apply min-h-dvh bg-[#f5f5f5] text-gray-900 antialiased;
+    @apply min-h-dvh min-w-0 touch-pan-y bg-[#f5f5f5] text-gray-900 antialiased;
+    overflow-x: clip;
+    overscroll-behavior-x: none;
+    max-width: 100%;
   }
 
   ::selection {

@@ -74,4 +74,33 @@ describe('ExpandableDealsSection', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/deals/hot?offset=0&limit=96');
     expect(screen.getByText('Showing all 30 hot deals')).toBeInTheDocument();
   });
+
+  it('shows fetchError when see-all API returns an error payload', async () => {
+    const initialDeals = Array.from({ length: 6 }, (_, i) => buildDeal(String(i + 1)));
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        deals: [],
+        total: 0,
+        fetchError: 'permission denied for table deals',
+      }),
+    } as Response);
+
+    render(
+      <ExpandableDealsSection
+        type="top"
+        initialDeals={initialDeals}
+        total={30}
+        origin="https://example.test"
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /see all/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText('permission denied for table deals')).toBeInTheDocument()
+    );
+    expect(screen.getAllByTestId('deal-card')).toHaveLength(6);
+  });
 });

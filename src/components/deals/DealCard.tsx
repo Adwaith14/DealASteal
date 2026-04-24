@@ -52,7 +52,7 @@ export function DealCard({ deal, priority = false, dealPageUrl, couponCode }: De
   const endsIn = formatDealEndsIn(deal.expires_at);
 
   return (
-    <article className="group flex h-full w-full flex-col overflow-hidden rounded-xl border border-neutral-300 bg-white shadow-[0_1px_0_rgba(0,0,0,0.03)] transition hover:-translate-y-0.5 hover:shadow-md">
+    <article className="group flex h-full min-w-0 w-full flex-col overflow-hidden rounded-xl border border-neutral-300 bg-white shadow-[0_1px_0_rgba(0,0,0,0.03)] transition hover:-translate-y-0.5 hover:shadow-md">
       {/*
         The Link wraps the image + content area so the whole card body is clickable
         and navigates to the deal detail page. The affiliate button sits outside this
@@ -64,7 +64,7 @@ export function DealCard({ deal, priority = false, dealPageUrl, couponCode }: De
         tabIndex={0}
       >
         {/* Image */}
-        <div className="relative aspect-square w-full shrink-0 bg-[#fcfcfc]">
+        <div className="relative flex aspect-square w-full min-w-0 shrink-0 items-center justify-center bg-[#fcfcfc]">
           <span className="absolute left-2 top-2 z-20 inline-flex max-w-[calc(100%-1rem)] items-center rounded-full bg-orange-500 px-2 py-1 text-[10px] font-extrabold uppercase leading-none tracking-wide text-white shadow-sm sm:left-2.5 sm:top-2.5">
             {deal.is_loot_deal ? <span aria-hidden>🔥&nbsp;</span> : null}
             {discountLabel}
@@ -73,10 +73,11 @@ export function DealCard({ deal, priority = false, dealPageUrl, couponCode }: De
             <Image
               src={imageUrl}
               alt={deal.title}
-              fill
+              width={800}
+              height={800}
               priority={priority}
               sizes="(max-width: 480px) 48vw, (max-width: 1024px) 220px, 190px"
-              className="object-contain p-2.5 transition duration-300 group-hover:scale-[1.02]"
+              className="max-h-full max-w-full object-contain p-2.5 transition duration-300 group-hover:scale-[1.02]"
             />
           ) : (
             <div
@@ -96,13 +97,13 @@ export function DealCard({ deal, priority = false, dealPageUrl, couponCode }: De
 
           <p className="flex items-center gap-1 text-[10px] text-gray-500">
             <ClockIcon className="size-3 shrink-0 text-gray-400" />
-            <span>{listed}</span>
+            <span suppressHydrationWarning>{listed}</span>
           </p>
 
           {endsIn ? (
             <p className="flex items-center gap-1 text-[10px] font-semibold text-red-600">
               <ClockIcon className="size-3 shrink-0" />
-              <span>{endsIn}</span>
+              <span suppressHydrationWarning>{endsIn}</span>
             </p>
           ) : null}
 

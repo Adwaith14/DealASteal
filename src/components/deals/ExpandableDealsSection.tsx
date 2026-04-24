@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { parseDealsSectionApiResponse } from '@/lib/deals/parse-deals-section-api-response';
 import type { Deal } from '@/types/database.types';
+import { buildHomeDealListHref } from '@/utils/deal-feed-query';
 import { DealCard } from './DealCard';
 
 type SectionType = 'top' | 'hot';
@@ -12,14 +14,14 @@ const SECTION_CONFIG = {
     title: 'Top Deals',
     subtitle: 'Curated picks',
     bannerBg: 'bg-gradient-to-r from-[#ef3d23] to-[#ff7f1f]',
-    viewAllHref: '/deals?type=top',
+    viewAllHref: buildHomeDealListHref({ minDiscount: 40 }),
   },
   hot: {
     icon: '🔥',
     title: 'Hot Deals',
     subtitle: 'Trending now',
     bannerBg: 'bg-gradient-to-r from-[#f59e0b] to-[#f4b000]',
-    viewAllHref: '/deals?type=hot',
+    viewAllHref: buildHomeDealListHref({ lootDeals: true }),
   },
 } as const;
 
@@ -35,7 +37,7 @@ export function ExpandableDealsSection({ type, initialDeals, total, origin }: Pr
   const [expanded, setExpanded] = useState(false);
   const [allDeals, setAllDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const collapsedVisibleCount = Math.min(initialDeals.length, 6);
   const remaining = Math.max(total - collapsedVisibleCount, 0);
@@ -50,15 +52,18 @@ export function ExpandableDealsSection({ type, initialDeals, total, origin }: Pr
       return;
     }
     setLoading(true);
-    setError(false);
+    setErrorMessage(null);
     try {
       const res = await fetch(`/api/deals/${type}?offset=0&limit=96`);
-      if (!res.ok) throw new Error('Failed');
-      const data = (await res.json()) as { deals: Deal[]; total: number };
-      setAllDeals(data.deals);
+      const parsed = await parseDealsSectionApiResponse(res);
+      if (!parsed.ok) {
+        setErrorMessage(parsed.message);
+        return;
+      }
+      setAllDeals(parsed.data.deals);
       setExpanded(true);
     } catch {
-      setError(true);
+      setErrorMessage('Network error — please try again.');
     } finally {
       setLoading(false);
     }
@@ -135,11 +140,11 @@ export function ExpandableDealsSection({ type, initialDeals, total, origin }: Pr
         </div>
       )}
 
-      {error && (
-        <p className="mt-2 text-center text-sm text-red-600">
-          Failed to load — please try again.
+      {errorMessage ? (
+        <p role="alert" className="mt-2 text-center text-sm text-red-600">
+          {errorMessage}
         </p>
-      )}
+      ) : null}
     </section>
   );
 }

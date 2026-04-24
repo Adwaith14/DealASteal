@@ -141,13 +141,14 @@ export function DealDetailView({ deal, dealPageUrl }: DealDetailViewProps) {
               {discountLabel}
             </span>
             {hasImage ? (
-              <div className="relative aspect-square w-full max-w-md lg:max-w-none">
+              <div className="relative flex aspect-square w-full max-w-md min-w-0 items-center justify-center lg:max-w-none">
                 <Image
                   src={imageUrl}
                   alt={deal.title}
-                  fill
+                  width={900}
+                  height={900}
                   priority
-                  className="object-contain drop-shadow-sm"
+                  className="max-h-full max-w-full object-contain drop-shadow-sm"
                   sizes="(max-width: 1024px) 100vw, 50vw"
                 />
               </div>
@@ -178,7 +179,7 @@ export function DealDetailView({ deal, dealPageUrl }: DealDetailViewProps) {
             </h1>
             <p className="flex items-center gap-1.5 text-xs text-gray-500">
               <ClockIcon className="size-3.5 text-gray-400" />
-              {listed}
+              <span suppressHydrationWarning>{listed}</span>
             </p>
 
             {deal.description ? (
@@ -231,7 +232,10 @@ export function DealDetailView({ deal, dealPageUrl }: DealDetailViewProps) {
             </div>
 
             {endsIn ? (
-              <div className="flex items-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700">
+              <div
+                suppressHydrationWarning
+                className="flex items-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700"
+              >
                 <ClockIcon className="size-4 shrink-0" />
                 {endsIn}
               </div>

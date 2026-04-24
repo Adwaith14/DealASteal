@@ -13,12 +13,20 @@ type DealSearchFieldProps = {
   initialQuery: string;
   /** Optional class for the outer wrapper (navbar vs mobile strip). */
   className?: string;
+  /**
+   * ``nav`` — white field + gray border (top bar). ``default`` — softer gray fill for in-page use.
+   */
+  variant?: 'default' | 'nav';
 };
 
 /**
  * Debounced title search synced to ``?q=`` on the home route (server-driven results).
  */
-export function DealSearchField({ initialQuery, className }: DealSearchFieldProps) {
+export function DealSearchField({
+  initialQuery,
+  className,
+  variant = 'default',
+}: DealSearchFieldProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -68,10 +76,14 @@ export function DealSearchField({ initialQuery, className }: DealSearchFieldProp
           name="q"
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          placeholder="Search deals, stores…"
+          placeholder="Search deals, stores..."
           autoComplete="off"
           spellCheck={false}
-          className="w-full rounded-lg border border-gray-200 bg-[#f5f5f5] py-2.5 pl-10 pr-3 text-sm text-gray-900 shadow-inner outline-none transition placeholder:text-gray-500 focus:border-gray-300 focus:bg-white focus:shadow-sm focus:ring-2 focus:ring-red-100 disabled:opacity-60"
+          className={
+            variant === 'nav'
+              ? 'w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-10 pr-3 text-sm text-gray-900 shadow-sm outline-none transition placeholder:text-gray-500 focus:border-gray-400 focus:ring-2 focus:ring-red-100 disabled:opacity-60'
+              : 'w-full rounded-lg border border-gray-200 bg-[#f5f5f5] py-2.5 pl-10 pr-3 text-sm text-gray-900 shadow-inner outline-none transition placeholder:text-gray-500 focus:border-gray-300 focus:bg-white focus:shadow-sm focus:ring-2 focus:ring-red-100 disabled:opacity-60'
+          }
           aria-busy={isPending}
         />
         <span

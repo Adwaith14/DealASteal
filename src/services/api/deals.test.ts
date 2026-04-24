@@ -151,6 +151,7 @@ describe('getActiveDeals', () => {
       expect(result.appliedStore).toBeNull();
       expect(result.appliedMinDiscount).toBeNull();
       expect(result.appliedMaxPrice).toBeNull();
+      expect(result.appliedLootOnly).toBe(false);
     }
   });
 
@@ -169,6 +170,7 @@ describe('getActiveDeals', () => {
       expect(result.appliedStore).toBeNull();
       expect(result.appliedMinDiscount).toBeNull();
       expect(result.appliedMaxPrice).toBeNull();
+      expect(result.appliedLootOnly).toBe(false);
     }
   });
 
@@ -200,6 +202,7 @@ describe('getActiveDeals', () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.appliedQuery).toBe('usb');
+      expect(result.appliedLootOnly).toBe(false);
     }
   });
 
@@ -211,6 +214,7 @@ describe('getActiveDeals', () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.appliedCategorySlug).toBe('tech');
+      expect(result.appliedLootOnly).toBe(false);
     }
   });
 
@@ -225,6 +229,7 @@ describe('getActiveDeals', () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.appliedCategorySlug).toBeNull();
+      expect(result.appliedLootOnly).toBe(false);
     }
   });
 
@@ -236,6 +241,7 @@ describe('getActiveDeals', () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.appliedStore).toBe('amazon');
+      expect(result.appliedLootOnly).toBe(false);
     }
   });
 
@@ -249,6 +255,7 @@ describe('getActiveDeals', () => {
     if (result.ok) {
       expect(result.appliedMinDiscount).toBe(25);
       expect(result.appliedMaxPrice).toBe(100);
+      expect(result.appliedLootOnly).toBe(false);
     }
   });
 
@@ -262,6 +269,18 @@ describe('getActiveDeals', () => {
     if (result.ok) {
       expect(result.appliedMinDiscount).toBeNull();
       expect(result.appliedMaxPrice).toBeNull();
+      expect(result.appliedLootOnly).toBe(false);
+    }
+  });
+
+  it('applies is_loot_deal when lootOnly is true', async () => {
+    builder.range.mockResolvedValue({ data: [], error: null, count: 0 });
+    const { getActiveDeals } = await import('./deals');
+    const result = await getActiveDeals({ lootOnly: true });
+    expect(builder.eq).toHaveBeenCalledWith('is_loot_deal', true);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.appliedLootOnly).toBe(true);
     }
   });
 });

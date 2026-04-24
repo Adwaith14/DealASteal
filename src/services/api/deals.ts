@@ -34,6 +34,8 @@ export type ActiveDealsQuery = {
   minDiscount?: number;
   /** Maximum ``discount_price`` in USD (URL ``max_price``). */
   maxPrice?: number;
+  /** When true, only ``is_loot_deal`` rows (URL ``loot=1``). */
+  lootOnly?: boolean;
 };
 
 export type ActiveDealsFetchSuccess = {
@@ -48,6 +50,7 @@ export type ActiveDealsFetchSuccess = {
   appliedStore: DealStoreFilterKey | null;
   appliedMinDiscount: number | null;
   appliedMaxPrice: number | null;
+  appliedLootOnly: boolean;
 };
 
 export type ActiveDealsFetchFailure = {
@@ -94,6 +97,7 @@ function normalizePagination(query: ActiveDealsQuery | undefined): {
   storeKey: DealStoreFilterKey | null;
   minDiscount: number | null;
   maxPrice: number | null;
+  lootOnly: boolean;
 } {
   const rawPage = query?.page ?? 1;
   const page = Number.isFinite(rawPage) && rawPage >= 1 ? Math.floor(rawPage) : 1;
@@ -122,7 +126,8 @@ function normalizePagination(query: ActiveDealsQuery | undefined): {
     maxPriceFloored != null && (MAX_DEAL_PRICE_OPTIONS as readonly number[]).includes(maxPriceFloored)
       ? maxPriceFloored
       : null;
-  return { page, pageSize, search, categorySlug, storeKey, minDiscount, maxPrice };
+  const lootOnly = query?.lootOnly === true;
+  return { page, pageSize, search, categorySlug, storeKey, minDiscount, maxPrice, lootOnly };
 }
 
 function escapeIlikePattern(value: string): string {
@@ -136,7 +141,7 @@ function escapeIlikePattern(value: string): string {
 export async function getActiveDeals(
   query?: ActiveDealsQuery
 ): Promise<ActiveDealsFetchResult> {
-  const { page, pageSize, search, categorySlug, storeKey, minDiscount, maxPrice } =
+  const { page, pageSize, search, categorySlug, storeKey, minDiscount, maxPrice, lootOnly } =
     normalizePagination(query);
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
@@ -167,6 +172,10 @@ export async function getActiveDeals(
     if (search) {
       const pattern = `%${escapeIlikePattern(search)}%`;
       builder = builder.ilike('title', pattern);
+    }
+
+    if (lootOnly) {
+      builder = builder.eq('is_loot_deal', true);
     }
 
     const { data, error, count } = await builder
@@ -200,6 +209,7 @@ export async function getActiveDeals(
       appliedStore: storeKey,
       appliedMinDiscount: minDiscount,
       appliedMaxPrice: maxPrice,
+      appliedLootOnly: lootOnly,
     };
   } catch (cause) {
     const message =

@@ -2,6 +2,9 @@
  "scripts": {
   "clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true});\"",
   "db:supabase-sql": "node scripts/print-supabase-category-sql.cjs",
+  "ingest:affiliate": "tsx --tsconfig tsconfig.json scripts/affiliate-rest-ingest.ts",
+  "ingest:affiliate:dry": "tsx --tsconfig tsconfig.json scripts/affiliate-rest-ingest.ts --dry-run --limit=10 --max-pages=1",
+  "ingest:affiliate:dry:fixture": "tsx --tsconfig tsconfig.json scripts/affiliate-rest-ingest.ts --dry-run --fixture=fixtures/affiliate-rest-sample.json --limit=10 --max-pages=1",
   "ingest:dummyjson": "tsx --tsconfig tsconfig.json scripts/dummyjson-ingest.ts",
   "ingest:dummyjson:dry": "tsx --tsconfig tsconfig.json scripts/dummyjson-ingest.ts --dry-run --take=5",
   "demo:reset-deals": "tsx --tsconfig tsconfig.json scripts/reset-and-seed-demo-deals.ts",

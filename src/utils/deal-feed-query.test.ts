@@ -29,4 +29,8 @@ describe('buildHomeDealListHref', () => {
       })
     ).toBe('/?q=hub&category=tech&store=amazon&min_disc=25&max_price=100');
   });
+
+  it('includes loot=1 when lootDeals is true', () => {
+    expect(buildHomeDealListHref({ lootDeals: true })).toBe('/?loot=1');
+  });
 });

@@ -24,7 +24,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.className} min-h-dvh`}>{children}</body>
+      <body className={`${inter.className} min-h-dvh min-w-0 overflow-x-clip`}>{children}</body>
     </html>
   );
 }

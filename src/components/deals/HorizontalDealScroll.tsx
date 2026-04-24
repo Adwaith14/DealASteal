@@ -64,7 +64,7 @@ export function HorizontalDealScroll({ deals, icon, title, subtitle, origin, cou
   };
 
   return (
-    <section className="relative py-4">
+    <section className="relative min-w-0 max-w-full py-4">
       {/* Section header */}
       <div className="mb-2.5 flex items-end justify-between">
         <h2 className="flex items-center gap-2 text-xl font-extrabold text-gray-900">
@@ -75,7 +75,7 @@ export function HorizontalDealScroll({ deals, icon, title, subtitle, origin, cou
       </div>
 
       {/* Scroll area with arrows */}
-      <div className="relative -mx-0.5">
+      <div className="relative -mx-0.5 min-w-0 max-w-full">
         {/* Left arrow */}
         <button
           onClick={() => scroll('left')}
@@ -90,7 +90,7 @@ export function HorizontalDealScroll({ deals, icon, title, subtitle, origin, cou
         {/* Cards container */}
         <div
           ref={scrollRef}
-          className="scrollbar-deals flex gap-2.5 overflow-x-auto px-0.5 pb-3.5 scroll-smooth snap-x snap-mandatory"
+          className="scrollbar-deals flex gap-2.5 overflow-x-auto overscroll-x-contain px-0.5 pb-3.5 scroll-smooth snap-x snap-mandatory"
           style={{ scrollbarWidth: 'thin', scrollbarColor: '#d1d5db transparent' }}
         >
           {deals.length === 0 ? (
@@ -99,7 +99,10 @@ export function HorizontalDealScroll({ deals, icon, title, subtitle, origin, cou
             </div>
           ) : (
             deals.map((deal, i) => (
-              <div key={deal.id} className="w-[158px] flex-none snap-start sm:w-[172px] lg:w-[178px]">
+              <div
+                key={deal.id}
+                className="w-[158px] min-w-0 flex-none snap-start sm:w-[172px] lg:w-[178px]"
+              >
                 <DealCard
                   deal={deal}
                   priority={i < 4}

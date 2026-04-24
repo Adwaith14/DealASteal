@@ -5,6 +5,11 @@ import type { Deal } from '@/types/database.types';
 import { POST } from './route';
 
 const mockFrom = vi.fn();
+const revalidatePathMock = vi.fn();
+
+vi.mock('next/cache', () => ({
+  revalidatePath: (path: string) => revalidatePathMock(path),
+}));
 
 vi.mock('@/lib/supabase/admin', () => ({
   getSupabaseAdmin: () => ({
@@ -16,6 +21,7 @@ describe('POST /api/ingest/deals', () => {
   beforeEach(() => {
     vi.stubEnv('INGESTION_API_KEY', 'test-ingestion-key');
     mockFrom.mockReset();
+    revalidatePathMock.mockReset();
   });
 
   afterEach(() => {
@@ -219,6 +225,10 @@ describe('POST /api/ingest/deals', () => {
     expect(insertedRow as Record<string, unknown>).not.toHaveProperty(
       'created_at'
     );
+    expect(revalidatePathMock).toHaveBeenCalledWith('/');
+    expect(revalidatePathMock).toHaveBeenCalledWith(
+      '/deals/660e8400-e29b-41d4-a716-446655440001'
+    );
   });
 
   it('returns 200 and uses upsert when ingest_external_id is set', async () => {
@@ -275,6 +285,10 @@ describe('POST /api/ingest/deals', () => {
     expect(upsertMock).toHaveBeenCalledWith(
       expect.objectContaining({ ingest_external_id: 'dummyjson:1' }),
       { onConflict: 'ingest_external_id' }
+    );
+    expect(revalidatePathMock).toHaveBeenCalledWith('/');
+    expect(revalidatePathMock).toHaveBeenCalledWith(
+      '/deals/660e8400-e29b-41d4-a716-446655440002'
     );
   });
 });

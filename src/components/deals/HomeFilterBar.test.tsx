@@ -22,6 +22,35 @@ afterEach(() => {
 });
 
 describe('HomeFilterBar', () => {
+  it('optionally wraps filters in a panel', () => {
+    render(<HomeFilterBar searchQuery="" activeCategorySlug={null} {...defaultFacets} panel />);
+
+    expect(screen.getByTestId('home-filter-panel')).toBeInTheDocument();
+  });
+
+  it('shows affiliate disclaimer when affiliateNote is set', () => {
+    render(
+      <HomeFilterBar searchQuery="" activeCategorySlug={null} {...defaultFacets} panel affiliateNote />
+    );
+
+    expect(screen.getByText(/As an Amazon Associate/i)).toBeInTheDocument();
+  });
+
+  it('preserves loot=1 when changing category if activeLootOnly', () => {
+    render(
+      <HomeFilterBar
+        searchQuery=""
+        activeCategorySlug={null}
+        {...defaultFacets}
+        activeLootOnly
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText('Category'), { target: { value: 'tech' } });
+
+    expect(push).toHaveBeenCalledWith('/?category=tech&loot=1');
+  });
+
   it('navigates when category changes', () => {
     render(<HomeFilterBar searchQuery="" activeCategorySlug={null} {...defaultFacets} />);
 

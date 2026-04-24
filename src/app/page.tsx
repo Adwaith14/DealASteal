@@ -1,6 +1,9 @@
 import { FloatingContact } from '@/components/layout/FloatingContact';
+import { HomeHeroSection } from '@/components/layout/HomeHeroSection';
+import { PageWithAdRails } from '@/components/layout/PageWithAdRails';
 import { SiteFooter } from '@/components/layout/SiteFooter';
 import { SiteHeader } from '@/components/layout/SiteHeader';
+import { HomeFilterBar } from '@/components/deals/HomeFilterBar';
 import { HorizontalDealScroll } from '@/components/deals/HorizontalDealScroll';
 import { ExpandableDealsSection } from '@/components/deals/ExpandableDealsSection';
 import { LatestDealsSection } from '@/components/deals/LatestDealsSection';
@@ -16,11 +19,13 @@ import {
 import { getActiveDeals } from '@/services/api/deals';
 import { getSiteOrigin } from '@/utils/site-origin';
 import {
+  normalizeLootDealsParam,
   normalizeMaxPriceParam,
   normalizeMinDiscountParam,
   normalizeStoreParam,
 } from '@/constants/deal-browse-filters';
 import { isDealCategorySlug } from '@/constants/deal-categories';
+import { collectUniqueSectionFetchErrors } from '@/utils/collect-unique-section-fetch-errors';
 
 type HomePageProps = {
   searchParams: Promise<{
@@ -30,20 +35,9 @@ type HomePageProps = {
     store?: string;
     min_disc?: string;
     max_price?: string;
+    loot?: string;
   }>;
 };
-
-/** Thin affiliate disclosure bar shown at the very top of the page. */
-function AnnouncementBar() {
-  return (
-    <div className="border-b border-amber-100 bg-amber-50 px-4 py-2 text-center text-[11px] text-amber-800 sm:text-xs">
-      As an Amazon Associate we earn from qualifying purchases. Prices subject to change.{' '}
-      <a href="/#affiliate" className="font-semibold underline hover:text-amber-900">
-        Learn more
-      </a>
-    </div>
-  );
-}
 
 export default async function HomePage({ searchParams }: HomePageProps) {
   const sp = await searchParams;
@@ -61,13 +55,15 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const appliedMaxPrice = normalizeMaxPriceParam(
     typeof sp.max_price === 'string' ? sp.max_price : ''
   );
+  const appliedLootOnly = normalizeLootDealsParam(typeof sp.loot === 'string' ? sp.loot : '');
 
   const isSearchMode =
     q.length > 0 ||
     Boolean(categoryForFilter) ||
     Boolean(appliedStore) ||
     Boolean(appliedMinDiscount) ||
-    Boolean(appliedMaxPrice);
+    Boolean(appliedMaxPrice) ||
+    appliedLootOnly;
 
   const origin = await getSiteOrigin();
 
@@ -80,14 +76,27 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       store: appliedStore ?? undefined,
       minDiscount: appliedMinDiscount ?? undefined,
       maxPrice: appliedMaxPrice ?? undefined,
+      lootOnly: appliedLootOnly || undefined,
     });
 
     return (
-      <div className="flex min-h-dvh flex-col bg-[#f5f5f5] text-gray-900">
+      <div className="flex min-h-dvh min-w-0 max-w-full flex-col bg-[#f5f5f5] text-gray-900">
         <SiteHeader initialSearchQuery={q} />
-        <AnnouncementBar />
+        <HomeHeroSection>
+          <HomeFilterBar
+            searchQuery={q}
+            activeCategorySlug={categoryForFilter}
+            activeStore={appliedStore}
+            activeMinDiscount={appliedMinDiscount}
+            activeMaxPrice={appliedMaxPrice}
+            activeLootOnly={appliedLootOnly}
+            panel
+            affiliateNote
+          />
+        </HomeHeroSection>
 
-        <main className="mx-auto w-full max-w-[920px] flex-1 px-3 py-6 sm:px-4 lg:px-5">
+        <PageWithAdRails className="flex-1 px-3 pb-8 pt-4 sm:px-4 lg:px-6">
+          <main id="main-content" className="w-full">
           <div className="mb-6">
             <h1 className="text-xl font-extrabold text-gray-900 sm:text-2xl">
               {q ? `Results for "${q}"` : 'Browse Deals'}
@@ -129,10 +138,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 store={result.appliedStore}
                 minDiscount={result.appliedMinDiscount}
                 maxPrice={result.appliedMaxPrice}
+                lootDeals={result.appliedLootOnly}
               />
             </>
           )}
-        </main>
+          </main>
+        </PageWithAdRails>
 
         <SiteFooter />
         <FloatingContact />
@@ -149,31 +160,51 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     getLatestDeals({ page: 1, pageSize: 36 }),
   ]);
 
-  const sectionFetchError =
-    expiringSection.fetchError ??
-    couponSection.fetchError ??
-    topResult.fetchError ??
-    hotResult.fetchError ??
-    latestResult.fetchError ??
-    null;
+  const sectionFetchErrors = collectUniqueSectionFetchErrors(
+    expiringSection.fetchError,
+    couponSection.fetchError,
+    topResult.fetchError,
+    hotResult.fetchError,
+    latestResult.fetchError
+  );
 
   const couponCodeMap = new Map<string, string>(
     couponSection.deals.map((d) => [d.id, d.coupon_code])
   );
 
   return (
-    <div className="flex min-h-dvh flex-col bg-[#f5f5f5] text-gray-900">
+    <div className="flex min-h-dvh min-w-0 max-w-full flex-col bg-[#f5f5f5] text-gray-900">
       <SiteHeader initialSearchQuery="" />
-      <AnnouncementBar />
+      <HomeHeroSection>
+        <HomeFilterBar
+          searchQuery=""
+          activeCategorySlug={null}
+          activeStore={null}
+          activeMinDiscount={null}
+          activeMaxPrice={null}
+          activeLootOnly={false}
+          panel
+          affiliateNote
+        />
+      </HomeHeroSection>
 
-      <main className="mx-auto w-full max-w-[920px] flex-1 px-3 py-2 sm:px-4 lg:px-5">
-        {sectionFetchError ? (
+      <PageWithAdRails className="flex-1 px-3 pb-8 pt-3 sm:px-4 lg:px-6">
+        <main id="main-content" className="w-full">
+        {sectionFetchErrors.length > 0 ? (
           <div
             role="alert"
             className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-950 sm:px-4"
           >
             <p className="font-semibold">Some deal sections could not load.</p>
-            <p className="mt-1 text-xs leading-relaxed sm:text-sm">{sectionFetchError}</p>
+            {sectionFetchErrors.length === 1 ? (
+              <p className="mt-1 text-xs leading-relaxed sm:text-sm">{sectionFetchErrors[0]}</p>
+            ) : (
+              <ul className="mt-2 list-inside list-disc space-y-1 text-xs leading-relaxed sm:text-sm">
+                {sectionFetchErrors.map((msg) => (
+                  <li key={msg}>{msg}</li>
+                ))}
+              </ul>
+            )}
           </div>
         ) : null}
 
@@ -218,7 +249,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           total={latestResult.total}
           origin={origin}
         />
-      </main>
+        </main>
+      </PageWithAdRails>
 
       <SiteFooter />
       <FloatingContact />

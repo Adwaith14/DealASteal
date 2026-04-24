@@ -63,3 +63,13 @@ export function normalizeStoreParam(raw: string | undefined | null): DealStoreFi
   const key = raw.trim().toLowerCase();
   return isDealStoreFilterKey(key) ? key : null;
 }
+
+const LOOT_DEALS_TRUTHY = new Set(['1', 'true', 'yes', 'on']);
+
+/** URL ``loot=`` — browse mode for loot / “hot” style deals (``is_loot_deal``). */
+export function normalizeLootDealsParam(raw: string | undefined | null): boolean {
+  if (raw == null || typeof raw !== 'string') {
+    return false;
+  }
+  return LOOT_DEALS_TRUTHY.has(raw.trim().toLowerCase());
+}

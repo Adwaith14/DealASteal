@@ -18,6 +18,12 @@ type HomeFilterBarProps = {
   activeStore: DealStoreFilterKey | null;
   activeMinDiscount: number | null;
   activeMaxPrice: number | null;
+  /** When true, URLs include ``loot=1`` (browse loot deals). */
+  activeLootOnly?: boolean;
+  /** Rounded light-gray bar (home hero under-strip). */
+  panel?: boolean;
+  /** Fine-print affiliate line under dropdowns (reference layout). */
+  affiliateNote?: boolean;
 };
 
 const selectClass =
@@ -28,12 +34,26 @@ const chevron =
 /**
  * Home feed facet row (category, store, min discount, max price) — all drive URL query params.
  */
+function AffiliateDisclaimer() {
+  return (
+    <p className="mt-3 border-t border-gray-200/90 pt-3 text-center text-[11px] leading-snug text-gray-600 sm:text-xs">
+      As an Amazon Associate we earn from qualifying purchases. Prices subject to change.{' '}
+      <a href="/#affiliate" className="font-semibold text-[#D32F2F] underline hover:text-red-800">
+        Learn more
+      </a>
+    </p>
+  );
+}
+
 export function HomeFilterBar({
   searchQuery,
   activeCategorySlug,
   activeStore,
   activeMinDiscount,
   activeMaxPrice,
+  activeLootOnly = false,
+  panel = false,
+  affiliateNote = false,
 }: HomeFilterBarProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -66,9 +86,17 @@ export function HomeFilterBar({
         store,
         minDiscount,
         maxPrice,
+        lootDeals: activeLootOnly || undefined,
       });
     },
-    [activeCategorySlug, activeMaxPrice, activeMinDiscount, activeStore, searchQuery]
+    [
+      activeCategorySlug,
+      activeLootOnly,
+      activeMaxPrice,
+      activeMinDiscount,
+      activeStore,
+      searchQuery,
+    ]
   );
 
   const pushHref = useCallback(
@@ -80,7 +108,7 @@ export function HomeFilterBar({
     [router]
   );
 
-  return (
+  const inner = (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <label className="block" htmlFor="home-filter-category">
         <span className="sr-only">Category</span>
@@ -198,6 +226,28 @@ export function HomeFilterBar({
           ))}
         </select>
       </label>
+    </div>
+  );
+
+  if (!panel) {
+    if (!affiliateNote) {
+      return inner;
+    }
+    return (
+      <>
+        {inner}
+        <AffiliateDisclaimer />
+      </>
+    );
+  }
+
+  return (
+    <div
+      data-testid="home-filter-panel"
+      className="rounded-2xl border border-gray-200 bg-gray-100 px-3 py-3.5 shadow-sm sm:px-4 sm:py-4"
+    >
+      {inner}
+      {affiliateNote ? <AffiliateDisclaimer /> : null}
     </div>
   );
 }

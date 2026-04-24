@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  normalizeLootDealsParam,
   normalizeMaxPriceParam,
   normalizeMinDiscountParam,
   normalizeStoreParam,
@@ -20,5 +21,13 @@ describe('deal-browse-filters', () => {
   it('normalizes max price', () => {
     expect(normalizeMaxPriceParam('100')).toBe(100);
     expect(normalizeMaxPriceParam('77')).toBeNull();
+  });
+
+  it('normalizes loot deals flag', () => {
+    expect(normalizeLootDealsParam('1')).toBe(true);
+    expect(normalizeLootDealsParam('TRUE')).toBe(true);
+    expect(normalizeLootDealsParam('yes')).toBe(true);
+    expect(normalizeLootDealsParam('0')).toBe(false);
+    expect(normalizeLootDealsParam('')).toBe(false);
   });
 });

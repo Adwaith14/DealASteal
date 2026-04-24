@@ -10,6 +10,7 @@ type DealsPaginationProps = {
   store: DealStoreFilterKey | null;
   minDiscount: number | null;
   maxPrice: number | null;
+  lootDeals?: boolean;
 };
 
 /**
@@ -23,6 +24,7 @@ export function DealsPagination({
   store,
   minDiscount,
   maxPrice,
+  lootDeals = false,
 }: DealsPaginationProps) {
   if (totalPages <= 1) {
     return null;
@@ -50,6 +52,7 @@ export function DealsPagination({
             store: store ?? undefined,
             minDiscount: minDiscount ?? undefined,
             maxPrice: maxPrice ?? undefined,
+            lootDeals: lootDeals || undefined,
           })}
           className={linkClass}
         >
@@ -71,6 +74,7 @@ export function DealsPagination({
             store: store ?? undefined,
             minDiscount: minDiscount ?? undefined,
             maxPrice: maxPrice ?? undefined,
+            lootDeals: lootDeals || undefined,
           })}
           className={linkClass}
         >

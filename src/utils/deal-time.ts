@@ -1,5 +1,6 @@
 /**
  * Human-readable “listed” time for deal cards (reference-style “12h ago”).
+ * Uses wall-clock ``nowMs`` — in SSR, render inside an element with ``suppressHydrationWarning`` if ``nowMs`` is not fixed.
  */
 export function formatDealListedAgo(iso: string, nowMs: number = Date.now()): string {
   const then = new Date(iso).getTime();
@@ -27,6 +28,7 @@ export function formatDealListedAgo(iso: string, nowMs: number = Date.now()): st
 
 /**
  * Short countdown for cards with ``expires_at`` in the near future.
+ * Same SSR note as ``formatDealListedAgo`` — pair with ``suppressHydrationWarning`` when rendered from the server.
  */
 export function formatDealEndsIn(iso: string | null, nowMs: number = Date.now()): string | null {
   if (iso == null || iso.trim() === '') {

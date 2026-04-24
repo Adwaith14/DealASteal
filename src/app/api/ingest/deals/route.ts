@@ -1,3 +1,4 @@
+import { revalidatePath } from 'next/cache';
 import { NextResponse, type NextRequest } from 'next/server';
 import { buildDealInsertRow, type DealInsertRow } from '@/lib/ingest/build-deal-insert';
 import { isValidIngestionAuth } from '@/lib/ingest/verify-ingestion-auth';
@@ -56,6 +57,16 @@ export async function POST(request: NextRequest) {
         body.detail = error.message;
       }
       return NextResponse.json(body, { status: 500 });
+    }
+
+    const deal = data as Deal | null;
+    if (deal?.id) {
+      try {
+        revalidatePath('/');
+        revalidatePath(`/deals/${deal.id}`);
+      } catch (revalidateCause) {
+        console.error('[DealASteal] ingest revalidatePath failed:', revalidateCause);
+      }
     }
 
     try {

@@ -57,4 +57,27 @@ describe('LatestDealsSection', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/deals/latest?page=2&pageSize=36');
     expect(screen.getByText('5 of 10 deals loaded')).toBeInTheDocument();
   });
+
+  it('shows fetchError from API when load more returns a Supabase-style failure', async () => {
+    const initialDeals = Array.from({ length: 3 }, (_, i) => buildDeal(String(i + 1)));
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        deals: [],
+        total: 10,
+        fetchError: 'column deals.ingest_external_id does not exist',
+      }),
+    } as Response);
+
+    render(<LatestDealsSection initialDeals={initialDeals} total={10} origin="https://example.test" />);
+    fireEvent.click(screen.getByRole('button', { name: /load more/i }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByText('column deals.ingest_external_id does not exist')
+      ).toBeInTheDocument()
+    );
+    expect(screen.getAllByTestId('deal-card')).toHaveLength(3);
+  });
 });

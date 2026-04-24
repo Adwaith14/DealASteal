@@ -5,30 +5,27 @@ import { DealDetailView } from '@/components/deals/DealDetailView';
 import { FloatingContact } from '@/components/layout/FloatingContact';
 import { SiteFooter } from '@/components/layout/SiteFooter';
 import { SiteHeader } from '@/components/layout/SiteHeader';
-import { getActiveDealById } from '@/services/api/deals';
+import { buildDealPdpMetadata } from '@/lib/deals/build-deal-pdp-metadata';
 import { getSiteOrigin } from '@/utils/site-origin';
+import { getActiveDealForPdp } from './get-active-deal-for-pdp';
 
 type PageProps = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const result = await getActiveDealById(id);
+  const [result, origin] = await Promise.all([getActiveDealForPdp(id), getSiteOrigin()]);
   if (!result.ok) {
+    if (result.error === 'database_error') {
+      return { title: 'Deal | DealASteal', robots: { index: false, follow: true } };
+    }
     return { title: 'Deal | DealASteal' };
   }
-  return {
-    title: `${result.deal.title} | DealASteal`,
-    description: result.deal.description ?? `Save on ${result.deal.title}`,
-    openGraph: {
-      title: result.deal.title,
-      type: 'website',
-    },
-  };
+  return buildDealPdpMetadata({ origin, deal: result.deal });
 }
 
 export default async function DealDetailPage({ params }: PageProps) {
   const { id } = await params;
-  const [result, origin] = await Promise.all([getActiveDealById(id), getSiteOrigin()]);
+  const [result, origin] = await Promise.all([getActiveDealForPdp(id), getSiteOrigin()]);
 
   if (!result.ok) {
     if (result.error === 'invalid_id' || result.error === 'not_found') {
@@ -37,7 +34,10 @@ export default async function DealDetailPage({ params }: PageProps) {
     return (
       <div className="min-h-dvh bg-[#f5f5f5]">
         <SiteHeader initialSearchQuery="" />
-        <div className="mx-auto max-w-2xl px-4 py-20 text-center text-gray-900">
+        <div
+          role="alert"
+          className="mx-auto max-w-2xl px-4 py-20 text-center text-gray-900"
+        >
           <h1 className="text-xl font-bold">Something went wrong</h1>
           <p className="mt-2 text-gray-600">{result.message}</p>
           <Link

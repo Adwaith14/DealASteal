@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { parseDealsSectionApiResponse } from '@/lib/deals/parse-deals-section-api-response';
 import type { Deal } from '@/types/database.types';
 import { DealCard } from './DealCard';
 
@@ -13,23 +14,26 @@ type Props = {
 export function LatestDealsSection({ initialDeals, total, origin }: Props) {
   const [deals, setDeals] = useState<Deal[]>(initialDeals);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [page, setPage] = useState(1);
 
   const hasMore = deals.length < total;
 
   const loadMore = useCallback(async () => {
     setLoading(true);
-    setError(false);
+    setErrorMessage(null);
     try {
       const nextPage = page + 1;
       const res = await fetch(`/api/deals/latest?page=${nextPage}&pageSize=36`);
-      if (!res.ok) throw new Error('Failed');
-      const data = (await res.json()) as { deals: Deal[]; total: number };
-      setDeals((prev) => [...prev, ...data.deals]);
+      const parsed = await parseDealsSectionApiResponse(res);
+      if (!parsed.ok) {
+        setErrorMessage(parsed.message);
+        return;
+      }
+      setDeals((prev) => [...prev, ...parsed.data.deals]);
       setPage(nextPage);
     } catch {
-      setError(true);
+      setErrorMessage('Network error — please try again.');
     } finally {
       setLoading(false);
     }
@@ -78,9 +82,11 @@ export function LatestDealsSection({ initialDeals, total, origin }: Props) {
       {/* Load more */}
       {hasMore && (
         <div className="mt-6 flex flex-col items-center gap-2">
-          {error && (
-            <p className="text-sm text-red-600">Something went wrong. Please try again.</p>
-          )}
+          {errorMessage ? (
+            <p role="alert" className="max-w-md text-center text-sm text-red-600">
+              {errorMessage}
+            </p>
+          ) : null}
           <button
             onClick={loadMore}
             disabled={loading}

@@ -8,6 +8,8 @@ export function buildHomeDealListHref(parts: {
   store?: string;
   minDiscount?: number;
   maxPrice?: number;
+  /** When true, adds ``loot=1`` (loot / hot-style deals on the home browse view). */
+  lootDeals?: boolean;
 }): string {
   const params = new URLSearchParams();
   const page = parts.page;
@@ -33,6 +35,9 @@ export function buildHomeDealListHref(parts: {
   const maxPrice = parts.maxPrice;
   if (maxPrice != null && maxPrice > 0) {
     params.set('max_price', String(maxPrice));
+  }
+  if (parts.lootDeals) {
+    params.set('loot', '1');
   }
   const qs = params.toString();
   return qs ? `/?${qs}` : '/';
