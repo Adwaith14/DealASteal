@@ -11,6 +11,8 @@ export const DummyJsonProductSchema = z
     discountPercentage: z.number().finite().nonnegative().optional(),
     thumbnail: z.string().url().optional(),
     images: z.array(z.string().url()).optional(),
+    brand: z.string().optional(),
+    sku: z.string().optional(),
   })
   .passthrough();
 

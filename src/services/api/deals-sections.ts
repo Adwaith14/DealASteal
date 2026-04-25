@@ -1,10 +1,10 @@
+import 'server-only';
+import { dealSelectColumnsForPostgrest } from '@/lib/catalog/deals-db-schema';
+import { DEALS_UNAVAILABLE_WITHOUT_PUBLIC_SUPABASE } from '@/lib/supabase/deals-db-unavailable-message';
 import { getSupabaseServerAnon } from '@/lib/supabase/server';
 import type { Deal, CouponDiscountType } from '@/types/database.types';
 import { logPostgrestError } from './log-postgrest-error';
 import { mapDealsPostgrestError } from './map-deals-postgrest-user-message';
-
-const DEAL_SELECT =
-  'id, merchant_id, title, description, original_price, discount_price, discount_percentage, affiliate_url, image_url, is_loot_deal, is_active, expires_at, created_at, category_slug, ingest_external_id';
 
 export interface DealWithCoupon extends Deal {
   coupon_code: string;
@@ -26,11 +26,14 @@ export type CouponSectionResult = { deals: DealWithCoupon[]; fetchError?: string
 export async function getExpiringDeals(limit = 20): Promise<ExpiringSectionResult> {
   try {
     const supabase = getSupabaseServerAnon();
+    if (!supabase) {
+      return { deals: [], fetchError: DEALS_UNAVAILABLE_WITHOUT_PUBLIC_SUPABASE };
+    }
     const now = new Date().toISOString();
     const weekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     const { data, error } = await supabase
       .from('deals')
-      .select(DEAL_SELECT)
+      .select(dealSelectColumnsForPostgrest())
       .eq('is_active', true)
       .not('expires_at', 'is', null)
       .gt('expires_at', now)
@@ -54,9 +57,14 @@ export async function getExpiringDeals(limit = 20): Promise<ExpiringSectionResul
 export async function getCouponDeals(limit = 16): Promise<CouponSectionResult> {
   try {
     const supabase = getSupabaseServerAnon();
+    if (!supabase) {
+      return { deals: [], fetchError: DEALS_UNAVAILABLE_WITHOUT_PUBLIC_SUPABASE };
+    }
     const { data, error } = await supabase
       .from('coupons')
-      .select(`code, discount_type, discount_value, deal:deals!inner(${DEAL_SELECT})`)
+      .select(
+        `code, discount_type, discount_value, deal:deals!inner(${dealSelectColumnsForPostgrest()})`
+      )
       .eq('is_active', true)
       .not('deal_id', 'is', null)
       .order('created_at', { ascending: false })
@@ -100,9 +108,16 @@ export async function getTopDeals(
   const { limit = 6, offset = 0 } = opts;
   try {
     const supabase = getSupabaseServerAnon();
+    if (!supabase) {
+      return {
+        deals: [],
+        total: 0,
+        fetchError: DEALS_UNAVAILABLE_WITHOUT_PUBLIC_SUPABASE,
+      };
+    }
     const { data, count, error } = await supabase
       .from('deals')
-      .select(DEAL_SELECT, { count: 'exact' })
+      .select(dealSelectColumnsForPostgrest(), { count: 'exact' })
       .eq('is_active', true)
       .gte('discount_percentage', 40)
       .order('discount_percentage', { ascending: false })
@@ -124,7 +139,7 @@ export async function getTopDeals(
     // Fallback: keep section populated even when no deal passes the strict threshold.
     const fallback = await supabase
       .from('deals')
-      .select(DEAL_SELECT, { count: 'exact' })
+      .select(dealSelectColumnsForPostgrest(), { count: 'exact' })
       .eq('is_active', true)
       .order('discount_percentage', { ascending: false })
       .order('created_at', { ascending: false })
@@ -150,9 +165,16 @@ export async function getHotDeals(
   const { limit = 6, offset = 0 } = opts;
   try {
     const supabase = getSupabaseServerAnon();
+    if (!supabase) {
+      return {
+        deals: [],
+        total: 0,
+        fetchError: DEALS_UNAVAILABLE_WITHOUT_PUBLIC_SUPABASE,
+      };
+    }
     const { data, count, error } = await supabase
       .from('deals')
-      .select(DEAL_SELECT, { count: 'exact' })
+      .select(dealSelectColumnsForPostgrest(), { count: 'exact' })
       .eq('is_active', true)
       .eq('is_loot_deal', true)
       .order('created_at', { ascending: false })
@@ -173,7 +195,7 @@ export async function getHotDeals(
     // Fallback: keep Hot section alive with recent active deals.
     const fallback = await supabase
       .from('deals')
-      .select(DEAL_SELECT, { count: 'exact' })
+      .select(dealSelectColumnsForPostgrest(), { count: 'exact' })
       .eq('is_active', true)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
@@ -200,9 +222,16 @@ export async function getLatestDeals(
   const to = from + pageSize - 1;
   try {
     const supabase = getSupabaseServerAnon();
+    if (!supabase) {
+      return {
+        deals: [],
+        total: 0,
+        fetchError: DEALS_UNAVAILABLE_WITHOUT_PUBLIC_SUPABASE,
+      };
+    }
     const { data, count, error } = await supabase
       .from('deals')
-      .select(DEAL_SELECT, { count: 'exact' })
+      .select(dealSelectColumnsForPostgrest(), { count: 'exact' })
       .eq('is_active', true)
       .order('created_at', { ascending: false })
       .range(from, to);

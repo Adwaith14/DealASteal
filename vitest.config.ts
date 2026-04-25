@@ -13,6 +13,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      // The ``server-only`` marker throws when imported from anything but a
+      // React Server Component bundle. Vitest runs in jsdom so the throw is
+      // unwanted noise — alias it to an empty module for tests.
+      'server-only': path.resolve(__dirname, './node_modules/server-only/empty.js'),
     },
   },
 });

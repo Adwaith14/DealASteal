@@ -1,8 +1,10 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { DealShareRow } from '@/components/deals/DealShareRow';
+import { SaveDealButton } from '@/components/deals/SaveDealButton';
 import { DealImagePlaceholderIcon } from '@/components/deals/deal-image-placeholder';
 import { formatDealEndsIn, formatDealListedAgo } from '@/utils/deal-time';
+import { trustAffiliateSourceLabel } from '@/utils/deal-trust';
 import type { Deal } from '@/types/database.types';
 
 const moneyFormatter = new Intl.NumberFormat('en-US', {
@@ -50,6 +52,7 @@ export function DealCard({ deal, priority = false, dealPageUrl, couponCode }: De
   const hasImage = imageUrl.length > 0;
   const listed = formatDealListedAgo(deal.created_at);
   const endsIn = formatDealEndsIn(deal.expires_at);
+  const trustSource = trustAffiliateSourceLabel(deal);
 
   return (
     <article className="group flex h-full min-w-0 w-full flex-col overflow-hidden rounded-xl border border-neutral-300 bg-white shadow-[0_1px_0_rgba(0,0,0,0.03)] transition hover:-translate-y-0.5 hover:shadow-md">
@@ -95,6 +98,12 @@ export function DealCard({ deal, priority = false, dealPageUrl, couponCode }: De
             {deal.title}
           </h2>
 
+          {trustSource ? (
+            <p className="text-[9px] font-medium uppercase tracking-wide text-gray-500">
+              Source: <span className="normal-case text-gray-700">{trustSource}</span>
+            </p>
+          ) : null}
+
           <p className="flex items-center gap-1 text-[10px] text-gray-500">
             <ClockIcon className="size-3 shrink-0 text-gray-400" />
             <span suppressHydrationWarning>{listed}</span>
@@ -123,6 +132,9 @@ export function DealCard({ deal, priority = false, dealPageUrl, couponCode }: De
 
       {/* Action footer — outside the card Link so button/share remain independently clickable */}
       <div className="mt-1.5 flex flex-col gap-2 px-2.5 pb-2.5">
+        <div className="flex items-center justify-end">
+          <SaveDealButton dealId={deal.id} />
+        </div>
         {couponCode ? (
           <div className="flex items-center gap-1.5 rounded-md bg-green-50 px-2 py-1.5">
             <TagIcon className="size-3.5 shrink-0 text-green-600" />

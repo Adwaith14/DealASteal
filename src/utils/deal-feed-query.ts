@@ -1,3 +1,5 @@
+import type { DealSortKey } from '@/constants/deal-browse-filters';
+
 /**
  * Build home feed URLs with stable ordering of query params (pagination + search + facets).
  */
@@ -10,6 +12,8 @@ export function buildHomeDealListHref(parts: {
   maxPrice?: number;
   /** When true, adds ``loot=1`` (loot / hot-style deals on the home browse view). */
   lootDeals?: boolean;
+  /** Omit or ``newest`` → no ``sort`` param (default grid order). */
+  sort?: DealSortKey;
 }): string {
   const params = new URLSearchParams();
   const page = parts.page;
@@ -38,6 +42,10 @@ export function buildHomeDealListHref(parts: {
   }
   if (parts.lootDeals) {
     params.set('loot', '1');
+  }
+  const sort = parts.sort;
+  if (sort != null && sort !== 'newest') {
+    params.set('sort', sort);
   }
   const qs = params.toString();
   return qs ? `/?${qs}` : '/';

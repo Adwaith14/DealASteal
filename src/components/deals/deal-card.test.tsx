@@ -48,6 +48,10 @@ vi.mock('./DealShareRow', () => ({
   ),
 }));
 
+vi.mock('./SaveDealButton', () => ({
+  SaveDealButton: ({ dealId }: { dealId: string }) => <div data-testid="save-deal">{dealId}</div>,
+}));
+
 function buildDeal(overrides: Partial<Deal> = {}): Deal {
   return {
     id: 'deal-1',
@@ -77,6 +81,17 @@ describe('DealCard', () => {
     expect(link).toHaveAttribute('href', 'https://example.com/deal');
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  it('shows affiliate source when trust_bundle.affiliate_network is set', () => {
+    render(
+      <DealCard
+        deal={buildDeal({ trust_bundle: { affiliate_network: 'impact' } })}
+        dealPageUrl={`${TEST_ORIGIN}/deals/deal-1`}
+      />
+    );
+    expect(screen.getByText(/Source:/i)).toBeInTheDocument();
+    expect(screen.getByText('impact')).toBeInTheDocument();
   });
 
   it('shows fire prefix on discount badge when is_loot_deal is true', () => {

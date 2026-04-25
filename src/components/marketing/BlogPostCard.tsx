@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { BlogCategoryIcon } from '@/components/marketing/BlogCategoryIcon';
-import type { BlogPost } from '@/lib/blog-posts';
+import type { BlogPost } from '@/lib/blog/types';
 import { formatBlogListDate } from '@/utils/blog-display';
 
 type BlogPostCardProps = {

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import type { DealStoreFilterKey } from '@/constants/deal-browse-filters';
+import type { DealSortKey, DealStoreFilterKey } from '@/constants/deal-browse-filters';
 import { buildHomeDealListHref } from '@/utils/deal-feed-query';
 
 type DealsPaginationProps = {
@@ -11,6 +11,7 @@ type DealsPaginationProps = {
   minDiscount: number | null;
   maxPrice: number | null;
   lootDeals?: boolean;
+  sort?: DealSortKey;
 };
 
 /**
@@ -25,6 +26,7 @@ export function DealsPagination({
   minDiscount,
   maxPrice,
   lootDeals = false,
+  sort = 'newest',
 }: DealsPaginationProps) {
   if (totalPages <= 1) {
     return null;
@@ -53,6 +55,7 @@ export function DealsPagination({
             minDiscount: minDiscount ?? undefined,
             maxPrice: maxPrice ?? undefined,
             lootDeals: lootDeals || undefined,
+            sort,
           })}
           className={linkClass}
         >
@@ -75,6 +78,7 @@ export function DealsPagination({
             minDiscount: minDiscount ?? undefined,
             maxPrice: maxPrice ?? undefined,
             lootDeals: lootDeals || undefined,
+            sort,
           })}
           className={linkClass}
         >

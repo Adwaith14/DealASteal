@@ -45,6 +45,11 @@ export function SiteFooter() {
                 </a>
               </li>
               <li>
+                <a href="/feed.xml" className="hover:text-white">
+                  RSS feed
+                </a>
+              </li>
+              <li>
                 <a href="/contact" className="hover:text-white">
                   Contact
                 </a>

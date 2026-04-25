@@ -225,10 +225,121 @@ describe('POST /api/ingest/deals', () => {
     expect(insertedRow as Record<string, unknown>).not.toHaveProperty(
       'created_at'
     );
+    expect((insertedRow as Record<string, unknown>).trust_bundle).toEqual({});
+    expect(insertedRow as Record<string, unknown>).not.toHaveProperty('currency');
     expect(revalidatePathMock).toHaveBeenCalledWith('/');
     expect(revalidatePathMock).toHaveBeenCalledWith(
       '/deals/660e8400-e29b-41d4-a716-446655440001'
     );
+  });
+
+  it('passes v2 catalog columns to insert when DEALS_DB_V2=1', async () => {
+    vi.stubEnv('DEALS_DB_V2', '1');
+    const inserted: Deal = {
+      id: '660e8400-e29b-41d4-a716-446655440099',
+      merchant_id: '550e8400-e29b-41d4-a716-446655440000',
+      title: 'Deal',
+      description: null,
+      original_price: 100,
+      discount_price: 80,
+      discount_percentage: 20,
+      affiliate_url: 'https://example.com',
+      image_url: null,
+      is_loot_deal: false,
+      is_active: true,
+      expires_at: null,
+      created_at: '2026-01-01T00:00:00.000Z',
+      category_slug: null,
+      ingest_external_id: null,
+    };
+    const insertMock = vi.fn(() => ({
+      select: vi.fn(() => ({
+        single: vi.fn(() => Promise.resolve({ data: inserted, error: null })),
+      })),
+    }));
+    mockFrom.mockReturnValue({ insert: insertMock });
+
+    const request = new NextRequest('http://localhost/api/ingest/deals', {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer test-ingestion-key',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        merchant_id: '550e8400-e29b-41d4-a716-446655440000',
+        title: 'Deal',
+        original_price: 100,
+        discount_price: 80,
+        affiliate_url: 'https://example.com',
+        is_loot_deal: false,
+        currency: 'USD',
+        merchant_sku: 'SKU-1',
+      }),
+    });
+
+    const response = await POST(request);
+    expect(response.status).toBe(201);
+    const [[insertedRow]] = insertMock.mock.calls as unknown[][];
+    expect((insertedRow as Record<string, unknown>).currency).toBe('USD');
+    expect((insertedRow as Record<string, unknown>).merchant_sku).toBe('SKU-1');
+    vi.unstubAllEnvs();
+  });
+
+  it('returns 413 when the body exceeds the size cap', async () => {
+    const oversizedDescription = 'x'.repeat(70_000);
+    const request = new NextRequest('http://localhost/api/ingest/deals', {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer test-ingestion-key',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        merchant_id: '550e8400-e29b-41d4-a716-446655440000',
+        title: 'Deal',
+        description: oversizedDescription,
+        original_price: 100,
+        discount_price: 80,
+        affiliate_url: 'https://example.com',
+        is_loot_deal: false,
+      }),
+    });
+    const response = await POST(request);
+    expect(response.status).toBe(413);
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it('returns 429 once the per-caller burst limit is exceeded', async () => {
+    const isolatedKey = `rate-limit-test-${Date.now()}-${Math.random()}`;
+    vi.stubEnv('INGESTION_API_KEY', isolatedKey);
+    mockFrom.mockReturnValue({
+      insert: () => ({
+        select: () => ({ single: () => Promise.resolve({ data: null, error: null }) }),
+      }),
+    });
+
+    const buildRequest = () =>
+      new NextRequest('http://localhost/api/ingest/deals', {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${isolatedKey}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          merchant_id: '550e8400-e29b-41d4-a716-446655440000',
+          title: 'Deal',
+          original_price: 100,
+          discount_price: 80,
+          affiliate_url: 'https://example.com',
+          is_loot_deal: false,
+        }),
+      });
+
+    let lastStatus = 0;
+    for (let i = 0; i < 61; i += 1) {
+      const r = await POST(buildRequest());
+      lastStatus = r.status;
+    }
+    expect(lastStatus).toBe(429);
   });
 
   it('returns 200 and uses upsert when ingest_external_id is set', async () => {
@@ -283,7 +394,10 @@ describe('POST /api/ingest/deals', () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual(upserted);
     expect(upsertMock).toHaveBeenCalledWith(
-      expect.objectContaining({ ingest_external_id: 'dummyjson:1' }),
+      expect.objectContaining({
+        ingest_external_id: 'dummyjson:1',
+        trust_bundle: {},
+      }),
       { onConflict: 'ingest_external_id' }
     );
     expect(revalidatePathMock).toHaveBeenCalledWith('/');

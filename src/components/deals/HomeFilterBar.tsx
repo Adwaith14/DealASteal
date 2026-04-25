@@ -3,10 +3,13 @@
 import { useRouter } from 'next/navigation';
 import { useCallback, useTransition } from 'react';
 import {
+  DEAL_SORT_KEYS,
+  DEAL_SORT_LABELS,
   DEAL_STORE_FILTER_KEYS,
   DEAL_STORE_LABELS,
   MAX_DEAL_PRICE_OPTIONS,
   MIN_DISCOUNT_PERCENT_OPTIONS,
+  type DealSortKey,
   type DealStoreFilterKey,
 } from '@/constants/deal-browse-filters';
 import { DEAL_CATEGORY_NAV } from '@/constants/deal-categories';
@@ -20,6 +23,8 @@ type HomeFilterBarProps = {
   activeMaxPrice: number | null;
   /** When true, URLs include ``loot=1`` (browse loot deals). */
   activeLootOnly?: boolean;
+  /** Browse grid sort (URL ``sort=``). */
+  activeSort?: DealSortKey;
   /** Rounded light-gray bar (home hero under-strip). */
   panel?: boolean;
   /** Fine-print affiliate line under dropdowns (reference layout). */
@@ -32,7 +37,7 @@ const chevron =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\")";
 
 /**
- * Home feed facet row (category, store, min discount, max price) — all drive URL query params.
+ * Home feed facet row (category, store, min discount, max price, sort) — all drive URL query params.
  */
 function AffiliateDisclaimer() {
   return (
@@ -52,6 +57,7 @@ export function HomeFilterBar({
   activeMinDiscount,
   activeMaxPrice,
   activeLootOnly = false,
+  activeSort = 'newest',
   panel = false,
   affiliateNote = false,
 }: HomeFilterBarProps) {
@@ -64,6 +70,7 @@ export function HomeFilterBar({
       store?: DealStoreFilterKey | null;
       minDiscount?: number | null;
       maxPrice?: number | null;
+      sort?: DealSortKey | null;
     }) => {
       const trimmed = searchQuery.trim();
       const category =
@@ -80,6 +87,8 @@ export function HomeFilterBar({
           : activeMinDiscount ?? undefined;
       const maxPrice =
         patch.maxPrice !== undefined ? patch.maxPrice ?? undefined : activeMaxPrice ?? undefined;
+      const sort =
+        patch.sort !== undefined ? patch.sort ?? 'newest' : activeSort;
       return buildHomeDealListHref({
         q: trimmed || undefined,
         category,
@@ -87,6 +96,7 @@ export function HomeFilterBar({
         minDiscount,
         maxPrice,
         lootDeals: activeLootOnly || undefined,
+        sort,
       });
     },
     [
@@ -94,6 +104,7 @@ export function HomeFilterBar({
       activeLootOnly,
       activeMaxPrice,
       activeMinDiscount,
+      activeSort,
       activeStore,
       searchQuery,
     ]
@@ -109,7 +120,7 @@ export function HomeFilterBar({
   );
 
   const inner = (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
       <label className="block" htmlFor="home-filter-category">
         <span className="sr-only">Category</span>
         <select
@@ -222,6 +233,36 @@ export function HomeFilterBar({
           {MAX_DEAL_PRICE_OPTIONS.map((n) => (
             <option key={n} value={n}>
               {`Under $${n}`}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="block" htmlFor="home-filter-sort">
+        <span className="sr-only">Sort order</span>
+        <select
+          id="home-filter-sort"
+          aria-busy={pending}
+          className={selectClass}
+          style={{
+            backgroundImage: chevron,
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'right 0.6rem center',
+            backgroundSize: '1.1rem',
+          }}
+          value={activeSort}
+          onChange={(e) => {
+            const v = e.target.value;
+            pushHref(
+              buildHref({
+                sort: v ? (v as DealSortKey) : null,
+              })
+            );
+          }}
+        >
+          {DEAL_SORT_KEYS.map((key) => (
+            <option key={key} value={key}>
+              {DEAL_SORT_LABELS[key]}
             </option>
           ))}
         </select>

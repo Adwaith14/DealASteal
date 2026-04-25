@@ -33,4 +33,12 @@ describe('buildHomeDealListHref', () => {
   it('includes loot=1 when lootDeals is true', () => {
     expect(buildHomeDealListHref({ lootDeals: true })).toBe('/?loot=1');
   });
+
+  it('includes sort when not newest', () => {
+    expect(buildHomeDealListHref({ sort: 'discount_desc' })).toBe('/?sort=discount_desc');
+  });
+
+  it('omits sort for newest', () => {
+    expect(buildHomeDealListHref({ sort: 'newest', q: 'hub' })).toBe('/?q=hub');
+  });
 });

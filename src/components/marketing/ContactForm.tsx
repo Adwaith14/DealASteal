@@ -7,11 +7,13 @@ type FormState = 'idle' | 'submitting' | 'success' | 'error';
 export function ContactForm() {
   const [state, setState] = useState<FormState>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successNote, setSuccessNote] = useState<string | null>(null);
 
   const onSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setState('submitting');
     setErrorMessage(null);
+    setSuccessNote(null);
     const form = e.currentTarget;
     const fd = new FormData(form);
     const payload = {
@@ -19,6 +21,7 @@ export function ContactForm() {
       email: String(fd.get('email') ?? ''),
       subject: String(fd.get('subject') ?? ''),
       message: String(fd.get('message') ?? ''),
+      company: String(fd.get('company') ?? ''),
     };
 
     try {
@@ -27,7 +30,11 @@ export function ContactForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        notice?: string;
+        delivered?: boolean;
+      };
 
       if (!res.ok) {
         setState('error');
@@ -36,6 +43,7 @@ export function ContactForm() {
       }
 
       setState('success');
+      setSuccessNote(typeof data.notice === 'string' ? data.notice : null);
       form.reset();
     } catch {
       setState('error');
@@ -48,9 +56,16 @@ export function ContactForm() {
       <h2 className="text-lg font-extrabold text-gray-900">Send us a message</h2>
 
       {state === 'success' ? (
-        <p className="mt-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
-          Thanks — your message was received. We&apos;ll get back to you when we can.
-        </p>
+        <div className="mt-4 space-y-2">
+          <p className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
+            Thanks — your message was received. We&apos;ll get back to you when we can.
+          </p>
+          {successNote ? (
+            <p className="text-xs text-gray-600" role="status">
+              {successNote}
+            </p>
+          ) : null}
+        </div>
       ) : null}
 
       {state === 'error' && errorMessage ? (
@@ -60,6 +75,14 @@ export function ContactForm() {
       ) : null}
 
       <form className="mt-6 space-y-4" onSubmit={onSubmit} noValidate>
+        <input
+          type="text"
+          name="company"
+          tabIndex={-1}
+          autoComplete="off"
+          aria-hidden
+          className="absolute left-[-9999px] h-px w-px opacity-0"
+        />
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block text-sm font-semibold text-gray-800">
             Name

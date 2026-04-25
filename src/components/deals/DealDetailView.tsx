@@ -3,12 +3,14 @@ import Link from 'next/link';
 import { formatCategoryLabel } from '@/components/deals/DealCategoryFilter';
 import { DealImagePlaceholderIcon } from '@/components/deals/deal-image-placeholder';
 import { DealShareRow } from '@/components/deals/DealShareRow';
+import { SaveDealButton } from '@/components/deals/SaveDealButton';
 import { isDealCategorySlug } from '@/constants/deal-categories';
 import type { Deal } from '@/types/database.types';
 import { storeLabelFromAffiliateUrl } from '@/utils/affiliate-display';
 import { getDealUrgencyForDisplay } from '@/utils/deal-pdp-urgency';
 import { buildHomeDealListHref } from '@/utils/deal-feed-query';
 import { formatDealEndsIn, formatDealListedAgo } from '@/utils/deal-time';
+import { trustAffiliateSourceLabel } from '@/utils/deal-trust';
 
 const moneyFormatter = new Intl.NumberFormat('en-US', {
   style: 'currency',
@@ -60,15 +62,18 @@ function barColor(bar: 'red' | 'orange' | 'green'): string {
 type DealDetailViewProps = {
   deal: Deal;
   dealPageUrl: string;
+  /** Whether the signed-in user has saved this deal (SSR when session exists). */
+  initialSaved?: boolean;
 };
 
-export function DealDetailView({ deal, dealPageUrl }: DealDetailViewProps) {
+export function DealDetailView({ deal, dealPageUrl, initialSaved }: DealDetailViewProps) {
   const discountPct = Math.round(deal.discount_percentage);
   const discountLabel = `${discountPct}% OFF`;
   const imageUrl = deal.image_url?.trim() ?? '';
   const hasImage = imageUrl.length > 0;
   const listed = formatDealListedAgo(deal.created_at);
   const endsIn = formatDealEndsIn(deal.expires_at);
+  const trustSource = trustAffiliateSourceLabel(deal);
   const storeLabel = storeLabelFromAffiliateUrl(deal.affiliate_url);
   const categoryLabel = formatCategoryLabel(deal.category_slug);
   const savings = Math.max(0, deal.original_price - deal.discount_price);
@@ -182,6 +187,13 @@ export function DealDetailView({ deal, dealPageUrl }: DealDetailViewProps) {
               <span suppressHydrationWarning>{listed}</span>
             </p>
 
+            {trustSource ? (
+              <p className="text-xs text-gray-600">
+                Listing data source:{' '}
+                <span className="font-semibold text-gray-900">{trustSource}</span>
+              </p>
+            ) : null}
+
             {deal.description ? (
               <p className="text-pretty text-sm leading-relaxed text-gray-600 sm:text-base">
                 {deal.description}
@@ -241,15 +253,18 @@ export function DealDetailView({ deal, dealPageUrl }: DealDetailViewProps) {
               </div>
             ) : null}
 
-            <a
-              href={deal.affiliate_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-orange-500 to-red-600 px-6 text-center text-base font-bold text-white shadow-md transition hover:from-orange-600 hover:to-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
-            >
-              Grab the Deal
-              <ExternalIcon className="size-5" />
-            </a>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+              <SaveDealButton dealId={deal.id} initialSaved={initialSaved} variant="wide" />
+              <a
+                href={deal.affiliate_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-12 w-full flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-orange-500 to-red-600 px-6 text-center text-base font-bold text-white shadow-md transition hover:from-orange-600 hover:to-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
+              >
+                Grab the Deal
+                <ExternalIcon className="size-5" />
+              </a>
+            </div>
 
             <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-4 text-center text-sm text-gray-600">
               <div>

@@ -95,6 +95,35 @@ describe('DealIngestSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('accepts optional trust_bundle with allowed keys', () => {
+    const result = DealIngestSchema.safeParse({
+      merchant_id: '550e8400-e29b-41d4-a716-446655440000',
+      title: 'x',
+      original_price: 10,
+      discount_price: 5,
+      affiliate_url: 'https://example.com',
+      is_loot_deal: false,
+      trust_bundle: {
+        affiliate_network: 'impact',
+        pipeline: 'affiliate-rest-v1',
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects trust_bundle with unknown keys', () => {
+    const result = DealIngestSchema.safeParse({
+      merchant_id: '550e8400-e29b-41d4-a716-446655440000',
+      title: 'x',
+      original_price: 10,
+      discount_price: 5,
+      affiliate_url: 'https://example.com',
+      is_loot_deal: false,
+      trust_bundle: { rogue: true },
+    });
+    expect(result.success).toBe(false);
+  });
+
   it('rejects empty ingest_external_id', () => {
     const result = DealIngestSchema.safeParse({
       merchant_id: '550e8400-e29b-41d4-a716-446655440000',

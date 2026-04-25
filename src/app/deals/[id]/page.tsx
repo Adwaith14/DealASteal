@@ -7,6 +7,7 @@ import { SiteFooter } from '@/components/layout/SiteFooter';
 import { SiteHeader } from '@/components/layout/SiteHeader';
 import { buildDealPdpMetadata } from '@/lib/deals/build-deal-pdp-metadata';
 import { getSiteOrigin } from '@/utils/site-origin';
+import { createSupabaseServerClient } from '@/lib/supabase/ssr-server';
 import { getActiveDealForPdp } from './get-active-deal-for-pdp';
 
 type PageProps = { params: Promise<{ id: string }> };
@@ -55,10 +56,25 @@ export default async function DealDetailPage({ params }: PageProps) {
 
   const dealPageUrl = `${origin}/deals/${result.deal.id}`;
 
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  let initialSaved: boolean | undefined;
+  if (user) {
+    const { data: row } = await supabase
+      .from('saved_deals')
+      .select('deal_id')
+      .eq('user_id', user.id)
+      .eq('deal_id', result.deal.id)
+      .maybeSingle();
+    initialSaved = row != null;
+  }
+
   return (
     <div className="flex min-h-dvh flex-col bg-[#f5f5f5] text-gray-900">
       <SiteHeader initialSearchQuery="" />
-      <DealDetailView deal={result.deal} dealPageUrl={dealPageUrl} />
+      <DealDetailView deal={result.deal} dealPageUrl={dealPageUrl} initialSaved={initialSaved} />
       <SiteFooter />
       <FloatingContact />
     </div>

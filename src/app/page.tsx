@@ -19,6 +19,7 @@ import {
 import { getActiveDeals } from '@/services/api/deals';
 import { getSiteOrigin } from '@/utils/site-origin';
 import {
+  normalizeDealSortParam,
   normalizeLootDealsParam,
   normalizeMaxPriceParam,
   normalizeMinDiscountParam,
@@ -36,6 +37,7 @@ type HomePageProps = {
     min_disc?: string;
     max_price?: string;
     loot?: string;
+    sort?: string;
   }>;
 };
 
@@ -56,6 +58,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     typeof sp.max_price === 'string' ? sp.max_price : ''
   );
   const appliedLootOnly = normalizeLootDealsParam(typeof sp.loot === 'string' ? sp.loot : '');
+  const appliedSort = normalizeDealSortParam(typeof sp.sort === 'string' ? sp.sort : '');
 
   const isSearchMode =
     q.length > 0 ||
@@ -63,7 +66,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     Boolean(appliedStore) ||
     Boolean(appliedMinDiscount) ||
     Boolean(appliedMaxPrice) ||
-    appliedLootOnly;
+    appliedLootOnly ||
+    appliedSort !== 'newest';
 
   const origin = await getSiteOrigin();
 
@@ -77,6 +81,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       minDiscount: appliedMinDiscount ?? undefined,
       maxPrice: appliedMaxPrice ?? undefined,
       lootOnly: appliedLootOnly || undefined,
+      sort: appliedSort,
     });
 
     return (
@@ -90,6 +95,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             activeMinDiscount={appliedMinDiscount}
             activeMaxPrice={appliedMaxPrice}
             activeLootOnly={appliedLootOnly}
+            activeSort={appliedSort}
             panel
             affiliateNote
           />
@@ -139,6 +145,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 minDiscount={result.appliedMinDiscount}
                 maxPrice={result.appliedMaxPrice}
                 lootDeals={result.appliedLootOnly}
+                sort={result.appliedSort}
               />
             </>
           )}
@@ -183,6 +190,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           activeMinDiscount={null}
           activeMaxPrice={null}
           activeLootOnly={false}
+          activeSort="newest"
           panel
           affiliateNote
         />

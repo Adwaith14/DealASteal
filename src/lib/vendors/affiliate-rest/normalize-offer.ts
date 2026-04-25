@@ -47,6 +47,10 @@ export function normalizeAffiliateRestOffer(
     is_loot_deal: pct >= threshold,
     category_slug: mapCategory(offer.category),
     ingest_external_id: `${options.source}:${options.merchantScope ?? 'default'}:${String(offer.external_id).trim()}`,
+    trust_bundle: {
+      affiliate_network: options.source,
+      pipeline: 'affiliate-rest-v1',
+    },
     ...(description ? { description: description.slice(0, 4000) } : {}),
     ...(imageUrl ? { image_url: imageUrl } : {}),
     ...(expiresAt ? { expires_at: expiresAt } : {}),

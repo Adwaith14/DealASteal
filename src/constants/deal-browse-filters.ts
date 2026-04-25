@@ -73,3 +73,28 @@ export function normalizeLootDealsParam(raw: string | undefined | null): boolean
   }
   return LOOT_DEALS_TRUTHY.has(raw.trim().toLowerCase());
 }
+
+/** Home browse grid ordering (URL ``sort=``). */
+export const DEAL_SORT_KEYS = ['newest', 'discount_desc', 'price_asc', 'price_desc'] as const;
+
+export type DealSortKey = (typeof DEAL_SORT_KEYS)[number];
+
+export const DEAL_SORT_LABELS: Record<DealSortKey, string> = {
+  newest: 'Newest',
+  discount_desc: 'Best discount',
+  price_asc: 'Price: low to high',
+  price_desc: 'Price: high to low',
+};
+
+export function isDealSortKey(value: string): value is DealSortKey {
+  return (DEAL_SORT_KEYS as readonly string[]).includes(value);
+}
+
+/** Unknown or empty → ``newest``. */
+export function normalizeDealSortParam(raw: string | undefined | null): DealSortKey {
+  if (raw == null || typeof raw !== 'string') {
+    return 'newest';
+  }
+  const t = raw.trim().toLowerCase();
+  return isDealSortKey(t) ? t : 'newest';
+}

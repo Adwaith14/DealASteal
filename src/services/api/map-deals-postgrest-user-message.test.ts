@@ -20,6 +20,32 @@ describe('mapDealsPostgrestError', () => {
     expect(msg).toContain('20260422150000_deals_ingest_external_id.sql');
   });
 
+  it('returns migration hint for missing trust_bundle', () => {
+    const msg = mapDealsPostgrestError('fallback', {
+      code: '42703',
+      message: 'column deals.trust_bundle does not exist',
+    });
+    expect(msg).toContain('trust_bundle');
+    expect(msg).toContain('20260423103000_deals_trust_bundle.sql');
+  });
+
+  it('returns migration hint for missing v2 deals columns (e.g. currency)', () => {
+    const msg = mapDealsPostgrestError('fallback', {
+      code: '42703',
+      message: 'column deals.currency does not exist',
+    });
+    expect(msg).toContain('20260425000000_v2_catalog_evolution.sql');
+    expect(msg).toContain('DEALS_DB_V2=1');
+  });
+
+  it('returns migration hint for missing v2 column on embedded deals alias', () => {
+    const msg = mapDealsPostgrestError('fallback', {
+      code: '42703',
+      message: 'column deals_1.currency does not exist',
+    });
+    expect(msg).toContain('20260425000000_v2_catalog_evolution.sql');
+  });
+
   it('uses raw message when no known pattern matches', () => {
     expect(mapDealsPostgrestError('fallback', { message: 'timeout', code: '57014' })).toBe(
       'timeout'

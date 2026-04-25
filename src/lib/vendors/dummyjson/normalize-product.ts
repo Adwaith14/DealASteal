@@ -89,6 +89,9 @@ export function normalizeDummyJsonProduct(
   const desc = product.description?.trim();
   const loot = (product.discountPercentage ?? 0) >= 30;
 
+  const sku = product.sku?.trim();
+  const brand = product.brand?.trim();
+
   return {
     merchant_id: options.merchantId,
     title: product.title.trim().slice(0, 500),
@@ -99,6 +102,14 @@ export function normalizeDummyJsonProduct(
     category_slug: mapDummyJsonCategoryToSlug(product.category),
     /** Enables idempotent ingest / upsert when re-running DummyJSON sync. */
     ingest_external_id: `dummyjson:${product.id}`,
+    trust_bundle: {
+      affiliate_network: 'dummyjson',
+      pipeline: 'dummyjson-v1',
+    },
+    /** Same shape as PA-API / Walmart when ``DEALS_DB_V2=1``; stripped on ingest until then. */
+    currency: 'USD',
+    merchant_sku: sku && sku.length > 0 ? sku.slice(0, 200) : `dummyjson:${product.id}`,
+    ...(brand && brand.length > 0 ? { brand: brand.slice(0, 200) } : {}),
     ...(desc ? { description: desc.slice(0, 4000) } : {}),
     ...(image ? { image_url: image } : {}),
   };

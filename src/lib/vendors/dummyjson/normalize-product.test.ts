@@ -60,6 +60,24 @@ describe('normalizeDummyJsonProduct', () => {
     expect(parsed.data.category_slug).toBe('fashion');
     expect(parsed.data.discount_price).toBeLessThanOrEqual(parsed.data.original_price);
     expect(parsed.data.ingest_external_id).toBe(`dummyjson:${sampleProduct.id}`);
+    expect(parsed.data.currency).toBe('USD');
+    expect(parsed.data.merchant_sku).toBe(`dummyjson:${sampleProduct.id}`);
+    expect(parsed.data.trust_bundle).toEqual({
+      affiliate_network: 'dummyjson',
+      pipeline: 'dummyjson-v1',
+    });
+  });
+
+  it('maps DummyJSON brand and sku when present', () => {
+    const payload = normalizeDummyJsonProduct(
+      { ...sampleProduct, brand: 'Essence', sku: 'SKU-42' },
+      { merchantId: MERCHANT }
+    );
+    const parsed = DealIngestSchema.safeParse(payload);
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(parsed.data.brand).toBe('Essence');
+    expect(parsed.data.merchant_sku).toBe('SKU-42');
   });
 
   it('uses custom affiliate URL builder', () => {

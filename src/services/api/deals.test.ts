@@ -94,10 +94,11 @@ describe('getActiveDeals', () => {
       expect(result.code).toBe('TEST');
     }
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      '[DealASteal] getActiveDeals failed:',
-      expect.objectContaining({ message: 'query failed' })
-    );
+    expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+    const [logLine] = consoleErrorSpy.mock.calls[0] as [string];
+    expect(logLine).toContain('"level":"error"');
+    expect(logLine).toContain('"msg":"getActiveDeals failed"');
+    expect(logLine).toContain('"message":"query failed"');
 
     expect(fromMock).toHaveBeenCalledWith('deals');
     expect(builder.select).toHaveBeenCalled();
@@ -152,6 +153,7 @@ describe('getActiveDeals', () => {
       expect(result.appliedMinDiscount).toBeNull();
       expect(result.appliedMaxPrice).toBeNull();
       expect(result.appliedLootOnly).toBe(false);
+      expect(result.appliedSort).toBe('newest');
     }
   });
 
@@ -171,6 +173,7 @@ describe('getActiveDeals', () => {
       expect(result.appliedMinDiscount).toBeNull();
       expect(result.appliedMaxPrice).toBeNull();
       expect(result.appliedLootOnly).toBe(false);
+      expect(result.appliedSort).toBe('newest');
     }
   });
 
@@ -186,10 +189,11 @@ describe('getActiveDeals', () => {
       expect(result.deals).toEqual([]);
       expect(result.error).toContain('network failure');
     }
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      '[DealASteal] getActiveDeals failed:',
-      expect.any(Error)
-    );
+    expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+    const [logLine] = consoleErrorSpy.mock.calls[0] as [string];
+    expect(logLine).toContain('"level":"error"');
+    expect(logLine).toContain('"msg":"getActiveDeals failed"');
+    expect(logLine).toContain('"message":"network failure"');
 
     consoleErrorSpy.mockRestore();
   });
@@ -203,6 +207,7 @@ describe('getActiveDeals', () => {
     if (result.ok) {
       expect(result.appliedQuery).toBe('usb');
       expect(result.appliedLootOnly).toBe(false);
+      expect(result.appliedSort).toBe('newest');
     }
   });
 
@@ -215,6 +220,7 @@ describe('getActiveDeals', () => {
     if (result.ok) {
       expect(result.appliedCategorySlug).toBe('tech');
       expect(result.appliedLootOnly).toBe(false);
+      expect(result.appliedSort).toBe('newest');
     }
   });
 
@@ -230,6 +236,7 @@ describe('getActiveDeals', () => {
     if (result.ok) {
       expect(result.appliedCategorySlug).toBeNull();
       expect(result.appliedLootOnly).toBe(false);
+      expect(result.appliedSort).toBe('newest');
     }
   });
 
@@ -242,6 +249,7 @@ describe('getActiveDeals', () => {
     if (result.ok) {
       expect(result.appliedStore).toBe('amazon');
       expect(result.appliedLootOnly).toBe(false);
+      expect(result.appliedSort).toBe('newest');
     }
   });
 
@@ -256,6 +264,7 @@ describe('getActiveDeals', () => {
       expect(result.appliedMinDiscount).toBe(25);
       expect(result.appliedMaxPrice).toBe(100);
       expect(result.appliedLootOnly).toBe(false);
+      expect(result.appliedSort).toBe('newest');
     }
   });
 
@@ -270,6 +279,7 @@ describe('getActiveDeals', () => {
       expect(result.appliedMinDiscount).toBeNull();
       expect(result.appliedMaxPrice).toBeNull();
       expect(result.appliedLootOnly).toBe(false);
+      expect(result.appliedSort).toBe('newest');
     }
   });
 
@@ -281,6 +291,53 @@ describe('getActiveDeals', () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.appliedLootOnly).toBe(true);
+      expect(result.appliedSort).toBe('newest');
+    }
+  });
+
+  it('orders by discount_percentage then created_at for discount_desc', async () => {
+    builder.range.mockResolvedValue({ data: [], error: null, count: 0 });
+    const { getActiveDeals } = await import('./deals');
+    const result = await getActiveDeals({ sort: 'discount_desc' });
+    expect(builder.order).toHaveBeenNthCalledWith(1, 'discount_percentage', { ascending: false });
+    expect(builder.order).toHaveBeenNthCalledWith(2, 'created_at', { ascending: false });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.appliedSort).toBe('discount_desc');
+    }
+  });
+
+  it('orders by discount_price ascending for price_asc', async () => {
+    builder.range.mockResolvedValue({ data: [], error: null, count: 0 });
+    const { getActiveDeals } = await import('./deals');
+    const result = await getActiveDeals({ sort: 'price_asc' });
+    expect(builder.order).toHaveBeenNthCalledWith(1, 'discount_price', { ascending: true });
+    expect(builder.order).toHaveBeenNthCalledWith(2, 'created_at', { ascending: false });
+    if (result.ok) {
+      expect(result.appliedSort).toBe('price_asc');
+    }
+  });
+
+  it('orders by discount_price descending for price_desc', async () => {
+    builder.range.mockResolvedValue({ data: [], error: null, count: 0 });
+    const { getActiveDeals } = await import('./deals');
+    const result = await getActiveDeals({ sort: 'price_desc' });
+    expect(builder.order).toHaveBeenNthCalledWith(1, 'discount_price', { ascending: false });
+    expect(builder.order).toHaveBeenNthCalledWith(2, 'created_at', { ascending: false });
+    if (result.ok) {
+      expect(result.appliedSort).toBe('price_desc');
+    }
+  });
+
+  it('treats bogus sort as newest', async () => {
+    builder.range.mockResolvedValue({ data: [], error: null, count: 0 });
+    const { getActiveDeals } = await import('./deals');
+    // Runtime string not in ``DEAL_SORT_KEYS`` — normalize falls back to ``newest``.
+    const result = await getActiveDeals({ sort: 'bogus' as import('@/constants/deal-browse-filters').DealSortKey });
+    expect(builder.order).toHaveBeenCalledTimes(1);
+    expect(builder.order).toHaveBeenCalledWith('created_at', { ascending: false });
+    if (result.ok) {
+      expect(result.appliedSort).toBe('newest');
     }
   });
 });

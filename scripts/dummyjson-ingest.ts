@@ -19,6 +19,10 @@
  *   - env: `INGEST_DRY_RUN=1`, `INGEST_BATCH_SIZE=3` (see parseArgs)
  *
  * Port: if you use `next dev -p 3010`, set `INGEST_SITE_URL=http://127.0.0.1:3010` in `.env.local`.
+ *
+ * Catalog columns: payloads include ``currency`` / ``merchant_sku`` for parity with Amazon ingest.
+ * If your Supabase DB has **not** run ``20260425000000_v2_catalog_evolution.sql``, leave ``DEALS_DB_V2``
+ * unset so the ingest route strips those keys. After the migration, set ``DEALS_DB_V2=1`` and restart Next.
  */
 
 import { config as loadEnv } from 'dotenv';

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import type { ReactNode } from 'react';
+import { getPublicSiteBaseUrl } from '@/lib/site-base-url';
 import './globals.css';
 
 const inter = Inter({
@@ -9,6 +10,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(getPublicSiteBaseUrl()),
   title: {
     default: 'DealASteal | Verified deals & discounts',
     template: '%s | DealASteal',

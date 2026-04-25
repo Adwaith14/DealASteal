@@ -1,4 +1,4 @@
-import type { BlogCategoryKey } from '@/lib/blog-posts';
+import type { BlogCategoryKey } from '@/lib/blog/types';
 
 type BlogCategoryIconProps = {
   categoryKey: BlogCategoryKey;

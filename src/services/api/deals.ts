@@ -1,18 +1,22 @@
-import type { DealStoreFilterKey } from '@/constants/deal-browse-filters';
+import 'server-only';
+import type { DealSortKey, DealStoreFilterKey } from '@/constants/deal-browse-filters';
 import {
   DEAL_STORE_URL_NEEDLES,
   isDealStoreFilterKey,
   MAX_DEAL_PRICE_OPTIONS,
   MIN_DISCOUNT_PERCENT_OPTIONS,
+  normalizeDealSortParam,
 } from '@/constants/deal-browse-filters';
 import { isDealCategorySlug } from '@/constants/deal-categories';
+import { dealSelectColumnsForPostgrest } from '@/lib/catalog/deals-db-schema';
+import { logger } from '@/lib/observability/logger';
+import { DEALS_UNAVAILABLE_WITHOUT_PUBLIC_SUPABASE } from '@/lib/supabase/deals-db-unavailable-message';
 import { getSupabaseServerAnon } from '@/lib/supabase/server';
 import type { Deal } from '@/types/database.types';
 import { logPostgrestError } from './log-postgrest-error';
 import { mapDealsPostgrestError } from './map-deals-postgrest-user-message';
 
-const ACTIVE_DEALS_SELECT =
-  'id, merchant_id, title, description, original_price, discount_price, discount_percentage, affiliate_url, image_url, is_loot_deal, is_active, expires_at, created_at, category_slug, ingest_external_id' as const;
+const log = logger.child('catalog');
 
 const DEFAULT_PAGE_SIZE = 24;
 const MAX_PAGE_SIZE = 48;
@@ -36,6 +40,8 @@ export type ActiveDealsQuery = {
   maxPrice?: number;
   /** When true, only ``is_loot_deal`` rows (URL ``loot=1``). */
   lootOnly?: boolean;
+  /** Grid sort (URL ``sort=``); default ``newest`` (``created_at`` desc). */
+  sort?: DealSortKey;
 };
 
 export type ActiveDealsFetchSuccess = {
@@ -51,6 +57,7 @@ export type ActiveDealsFetchSuccess = {
   appliedMinDiscount: number | null;
   appliedMaxPrice: number | null;
   appliedLootOnly: boolean;
+  appliedSort: DealSortKey;
 };
 
 export type ActiveDealsFetchFailure = {
@@ -98,6 +105,7 @@ function normalizePagination(query: ActiveDealsQuery | undefined): {
   minDiscount: number | null;
   maxPrice: number | null;
   lootOnly: boolean;
+  sortKey: DealSortKey;
 } {
   const rawPage = query?.page ?? 1;
   const page = Number.isFinite(rawPage) && rawPage >= 1 ? Math.floor(rawPage) : 1;
@@ -127,7 +135,8 @@ function normalizePagination(query: ActiveDealsQuery | undefined): {
       ? maxPriceFloored
       : null;
   const lootOnly = query?.lootOnly === true;
-  return { page, pageSize, search, categorySlug, storeKey, minDiscount, maxPrice, lootOnly };
+  const sortKey = normalizeDealSortParam(query?.sort == null ? null : query.sort);
+  return { page, pageSize, search, categorySlug, storeKey, minDiscount, maxPrice, lootOnly, sortKey };
 }
 
 function escapeIlikePattern(value: string): string {
@@ -141,16 +150,23 @@ function escapeIlikePattern(value: string): string {
 export async function getActiveDeals(
   query?: ActiveDealsQuery
 ): Promise<ActiveDealsFetchResult> {
-  const { page, pageSize, search, categorySlug, storeKey, minDiscount, maxPrice, lootOnly } =
+  const { page, pageSize, search, categorySlug, storeKey, minDiscount, maxPrice, lootOnly, sortKey } =
     normalizePagination(query);
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
   try {
     const supabase = getSupabaseServerAnon();
+    if (!supabase) {
+      return {
+        ok: false,
+        deals: [],
+        error: DEALS_UNAVAILABLE_WITHOUT_PUBLIC_SUPABASE,
+      };
+    }
     let builder = supabase
       .from('deals')
-      .select(ACTIVE_DEALS_SELECT, { count: 'exact' })
+      .select(dealSelectColumnsForPostgrest(), { count: 'exact' })
       .eq('is_active', true);
 
     if (categorySlug) {
@@ -178,9 +194,27 @@ export async function getActiveDeals(
       builder = builder.eq('is_loot_deal', true);
     }
 
-    const { data, error, count } = await builder
-      .order('created_at', { ascending: false })
-      .range(from, to);
+    switch (sortKey) {
+      case 'discount_desc':
+        builder = builder
+          .order('discount_percentage', { ascending: false })
+          .order('created_at', { ascending: false });
+        break;
+      case 'price_asc':
+        builder = builder
+          .order('discount_price', { ascending: true })
+          .order('created_at', { ascending: false });
+        break;
+      case 'price_desc':
+        builder = builder
+          .order('discount_price', { ascending: false })
+          .order('created_at', { ascending: false });
+        break;
+      default:
+        builder = builder.order('created_at', { ascending: false });
+    }
+
+    const { data, error, count } = await builder.range(from, to);
 
     if (error) {
       logPostgrestError('getActiveDeals failed', error);
@@ -210,11 +244,14 @@ export async function getActiveDeals(
       appliedMinDiscount: minDiscount,
       appliedMaxPrice: maxPrice,
       appliedLootOnly: lootOnly,
+      appliedSort: sortKey,
     };
   } catch (cause) {
     const message =
       cause instanceof Error ? cause.message : 'Unexpected error loading deals';
-    console.error('[DealASteal] getActiveDeals failed:', cause);
+    log.error('getActiveDeals failed', {
+      message: cause instanceof Error ? cause.message : 'unknown',
+    });
     return {
       ok: false,
       deals: [],
@@ -238,9 +275,16 @@ export async function getActiveDealById(id: string): Promise<ActiveDealByIdResul
 
   try {
     const supabase = getSupabaseServerAnon();
+    if (!supabase) {
+      return {
+        ok: false,
+        error: 'database_error',
+        message: DEALS_UNAVAILABLE_WITHOUT_PUBLIC_SUPABASE,
+      };
+    }
     const { data, error } = await supabase
       .from('deals')
-      .select(ACTIVE_DEALS_SELECT)
+      .select(dealSelectColumnsForPostgrest())
       .eq('id', trimmed)
       .eq('is_active', true)
       .maybeSingle();
@@ -267,7 +311,9 @@ export async function getActiveDealById(id: string): Promise<ActiveDealByIdResul
   } catch (cause) {
     const message =
       cause instanceof Error ? cause.message : 'Unexpected error loading deal';
-    console.error('[DealASteal] getActiveDealById failed:', cause);
+    log.error('getActiveDealById failed', {
+      message: cause instanceof Error ? cause.message : 'unknown',
+    });
     return {
       ok: false,
       error: 'database_error',

@@ -26,7 +26,18 @@ class DealIngestPayload(TypedDict):
     discount_price: float
     affiliate_url: str
     is_loot_deal: bool
+    description: NotRequired[str]
+    image_url: NotRequired[str]
+    expires_at: NotRequired[str]
     category_slug: NotRequired[str]
+    ingest_external_id: NotRequired[str]
+    currency: NotRequired[str]
+    asin: NotRequired[str]
+    gtin: NotRequired[str]
+    brand: NotRequired[str]
+    rating: NotRequired[float]
+    rating_count: NotRequired[int]
+    availability: NotRequired[str]
 
 
 class BaseDealScraper:
@@ -47,7 +58,8 @@ class BaseDealScraper:
             )
 
         self._api_key: str = api_key
-        self.api_url: str = self._DEFAULT_API_URL
+        # Allow the cron worker to point at staging/prod via env without code changes.
+        self.api_url: str = os.getenv("DEALASTEAL_INGEST_URL", self._DEFAULT_API_URL).strip() or self._DEFAULT_API_URL
 
     def push_to_api(self, deal_payload: dict[str, Any]) -> bool:
         """
@@ -80,7 +92,9 @@ class BaseDealScraper:
             print(f"HTTP request failed: {exc}", file=sys.stderr)
             return False
 
-        if response.status_code == 201:
+        # The ingest API returns 201 on insert and 200 on idempotent upsert (when
+        # ``ingest_external_id`` is supplied). Both are success.
+        if response.status_code in (200, 201):
             return True
 
         self._print_failed_response(response)

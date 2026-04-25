@@ -47,6 +47,7 @@ describe('ContactForm', () => {
       email: 'test@example.com',
       subject: 'Question',
       message: 'Hello there.',
+      company: '',
     });
 
     expect(await screen.findByText(/Thanks — your message was received/i)).toBeInTheDocument();

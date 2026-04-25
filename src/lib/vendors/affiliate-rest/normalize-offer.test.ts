@@ -31,5 +31,9 @@ describe('normalizeAffiliateRestOffer', () => {
     expect(parsed.data.ingest_external_id).toBe('impact:target:impact-991');
     expect(parsed.data.category_slug).toBe('home');
     expect(parsed.data.is_loot_deal).toBe(true);
+    expect(parsed.data.trust_bundle).toEqual({
+      affiliate_network: 'impact',
+      pipeline: 'affiliate-rest-v1',
+    });
   });
 });

@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { DealSearchField } from '@/components/deals/DealSearchField';
+import { getSupabaseBrowserClient } from '@/lib/supabase/browser-client';
 
 function SearchFallback() {
   return (
@@ -40,6 +41,28 @@ function isNavActive(pathname: string | null, href: string, label: string): bool
 
 export function SiteHeader({ initialSearchQuery }: SiteHeaderProps) {
   const pathname = usePathname();
+  const [authEmail, setAuthEmail] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      setAuthEmail(null);
+      return;
+    }
+    void supabase.auth.getUser().then(({ data }) => {
+      setAuthEmail(data.user?.email ?? null);
+    });
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      void supabase.auth.getUser().then(({ data }) => {
+        setAuthEmail(data.user?.email ?? null);
+      });
+    });
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 w-full min-w-0 max-w-full border-b border-gray-200 bg-white">
@@ -88,6 +111,25 @@ export function SiteHeader({ initialSearchQuery }: SiteHeaderProps) {
                 </Link>
               );
             })}
+            {authEmail === undefined ? (
+              <span className="px-2.5 py-2 text-xs font-medium text-gray-400 sm:px-3" aria-hidden>
+                …
+              </span>
+            ) : authEmail ? (
+              <Link
+                href="/account"
+                className="rounded-md px-2.5 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 hover:text-gray-900 sm:px-3"
+              >
+                Account
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                className="rounded-md px-2.5 py-2 text-sm font-semibold text-[#D32F2F] transition hover:bg-red-50 sm:px-3"
+              >
+                Sign in
+              </Link>
+            )}
           </nav>
         </div>
 

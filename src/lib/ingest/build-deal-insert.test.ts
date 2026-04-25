@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { DealIngestPayload } from '@/types/schemas';
+import { DealIngestSchema, type DealIngestPayload } from '@/types/schemas';
 import { buildDealInsertRow } from './build-deal-insert';
 
 describe('buildDealInsertRow', () => {
@@ -27,7 +27,48 @@ describe('buildDealInsertRow', () => {
       expires_at: null,
       category_slug: null,
       ingest_external_id: null,
+      trust_bundle: {},
+      currency: 'USD',
+      merchant_sku: null,
+      asin: null,
+      gtin: null,
+      brand: null,
+      rating: null,
+      rating_count: null,
+      availability: null,
+      last_seen_at: null,
     });
+  });
+
+  it('passes through v2 catalog fields when present (post-Zod normalisation)', () => {
+    const payload = DealIngestSchema.parse({
+      merchant_id: '550e8400-e29b-41d4-a716-446655440000',
+      title: 'Pixel 9 Pro',
+      original_price: 999,
+      discount_price: 749,
+      affiliate_url: 'https://example.com/pixel',
+      is_loot_deal: true,
+      currency: 'usd',
+      asin: 'b0a1b2c3d4',
+      gtin: '0193030123456',
+      brand: 'Google',
+      rating: 4.6,
+      rating_count: 1284,
+      availability: 'in_stock',
+      last_seen_at: '2026-04-25T10:00:00.000Z',
+      merchant_sku: 'GOOG-PXL9P-128',
+    }) as DealIngestPayload;
+
+    const row = buildDealInsertRow(payload);
+    expect(row.currency).toBe('USD');
+    expect(row.asin).toBe('B0A1B2C3D4');
+    expect(row.gtin).toBe('0193030123456');
+    expect(row.brand).toBe('Google');
+    expect(row.rating).toBe(4.6);
+    expect(row.rating_count).toBe(1284);
+    expect(row.availability).toBe('in_stock');
+    expect(row.last_seen_at).toBe('2026-04-25T10:00:00.000Z');
+    expect(row.merchant_sku).toBe('GOOG-PXL9P-128');
   });
 
   it('passes through optional category_slug', () => {
@@ -61,6 +102,26 @@ describe('buildDealInsertRow', () => {
     expect(row.description).toBe('Hello');
     expect(row.image_url).toBe('https://example.com/i.jpg');
     expect(row.expires_at).toBe('2027-01-01T00:00:00.000Z');
+  });
+
+  it('passes through optional trust_bundle', () => {
+    const payload: DealIngestPayload = {
+      merchant_id: '550e8400-e29b-41d4-a716-446655440000',
+      title: 'Test',
+      original_price: 100,
+      discount_price: 75,
+      affiliate_url: 'https://example.com',
+      is_loot_deal: false,
+      trust_bundle: {
+        affiliate_network: 'impact',
+        link_verified_at: '2026-06-01T12:00:00.000Z',
+      },
+    };
+
+    expect(buildDealInsertRow(payload).trust_bundle).toEqual({
+      affiliate_network: 'impact',
+      link_verified_at: '2026-06-01T12:00:00.000Z',
+    });
   });
 
   it('passes through optional ingest_external_id', () => {

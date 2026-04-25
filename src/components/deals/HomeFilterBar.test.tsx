@@ -86,4 +86,27 @@ describe('HomeFilterBar', () => {
       '/?q=cable&category=tech&store=amazon&min_disc=25&max_price=100'
     );
   });
+
+  it('preserves sort when changing store', () => {
+    render(
+      <HomeFilterBar
+        searchQuery=""
+        activeCategorySlug={null}
+        {...defaultFacets}
+        activeSort="discount_desc"
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText('Stores'), { target: { value: 'amazon' } });
+
+    expect(push).toHaveBeenCalledWith('/?store=amazon&sort=discount_desc');
+  });
+
+  it('navigates when sort changes', () => {
+    render(<HomeFilterBar searchQuery="" activeCategorySlug={null} {...defaultFacets} />);
+
+    fireEvent.change(screen.getByLabelText('Sort order'), { target: { value: 'price_asc' } });
+
+    expect(push).toHaveBeenCalledWith('/?sort=price_asc');
+  });
 });
