@@ -1,0 +1,9 @@
+-- Phase 14 — account deletion & portability (application-level).
+--
+-- User deletion is performed via Supabase Auth Admin API ``deleteUser`` from
+-- ``DELETE /api/me/delete``. Foreign keys:
+--   - ``saved_deals.user_id`` → ``auth.users`` ON DELETE CASCADE
+--   - ``profiles.id``        → ``auth.users`` ON DELETE CASCADE
+--   - ``click_events.user_id`` → ``auth.users`` ON DELETE SET NULL (anonymised)
+--
+-- No DDL change required here; this file documents behaviour for operators.

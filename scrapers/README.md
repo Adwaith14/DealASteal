@@ -11,57 +11,89 @@ from official affiliate APIs and POST cleaned `DealIngestPayload` rows to
   HTML access without explicit permission, and Amazon in particular will
   blackhole the IP. Always use the **official affiliate API** for the
   network you have an account with.
-- One worker per network. Pure functions for normalization (already
-  unit-testable); HTTP/auth code lives in `base_scraper.py`.
+- One worker per network. Normalization lives in `networks/normalize.py`;
+  signing and HTTP clients live in `networks/*_client.py` and
+  `networks/*_sign.py`.
 - Workers run **out-of-process** (cron / GitHub Actions / Vercel Cron).
   They do not share memory with the Next.js app.
 
-## Supported networks (templates)
+## Supported networks
 
-| File                     | Network / API                                   | Auth                                           |
-|--------------------------|--------------------------------------------------|-------------------------------------------------|
-| `amazon_paapi.py`        | Amazon **PA-API 5.0** (`webservices.amazon.com`) | AWS SigV4 with `Access Key`, `Secret`, `Tag`    |
-| `walmart_affiliate.py`   | Walmart **Affiliate / Open API**                 | `WM_CONSUMER.ID` + RSA-SHA256 signature header  |
-| `ebay_partner.py`        | eBay **Partner Network / Browse API**            | OAuth 2.0 client-credentials                    |
+| File                   | Network / API                                      | Auth |
+|------------------------|----------------------------------------------------|------|
+| `amazon_paapi.py`      | Amazon **PA-API 5.0** (`/paapi5/searchitems`)    | AWS SigV4 (`botocore`), ~1 TPS client pacing |
+| `walmart_affiliate.py` | Walmart **Affiliate / Open API** (product feeds) | `WM_CONSUMER.ID` + RSA-SHA256 (`cryptography`) |
+| `ebay_partner.py`      | eBay **Browse API** (item summary search)        | OAuth 2.0 client-credentials + `EBAY_CAMPAIGN_ID` |
+| `bestbuy_impact.py`    | Best Buy–shaped **JSON catalog** (Impact-style)  | Optional bearer; fixture path or HTTPS URL |
+| `target_impact.py`     | Target–shaped **JSON catalog** (Impact-style)    | Optional bearer; fixture path or HTTPS URL |
 
-Each template is a thin skeleton: it documents required env vars, returns
-**no data** without real credentials, and shows where to map raw vendor
-fields onto the `DealIngestPayload` schema in
-`src/types/schemas.ts`. Fill in real signing/fetch logic before running
-in production.
+## Docker
+
+From the **repository root** (so `.env.local` can be mounted if desired):
+
+```bash
+docker build -f scrapers/Dockerfile -t dealasteal-workers ./scrapers
+docker run --rm -e INGESTION_API_KEY=... -e AMAZON_MERCHANT_ID=... \
+  -e AMAZON_PAAPI_ACCESS_KEY=... -e AMAZON_PAAPI_SECRET_KEY=... \
+  -e AMAZON_PAAPI_PARTNER_TAG=... \
+  dealasteal-workers
+```
+
+Override the default command, e.g. `docker run ... dealasteal-workers python walmart_affiliate.py`.
 
 ## Local run
 
-1. From repo root: `npm run dev` (serves the ingest API on `:3000`).
-2. From this folder:
-   ```bash
-   pip install -r requirements.txt
-   python amazon_paapi.py            # dry-run; will exit early until creds are set
-   ```
-3. Set the relevant network credentials in repo root `.env.local`
-   (never commit them — `.env*` is git-ignored).
+1. Repo root: `npm run dev` (ingest API on `:3000`).
+2. `pip install -r scrapers/requirements.txt`
+3. `python scrapers/amazon_paapi.py` (or `cd scrapers` then `python amazon_paapi.py`)
+4. Credentials in repo root `.env.local` (never commit — `.env*` is ignored).
+
+## Tests (no live network)
+
+From repo root:
+
+```bash
+npm run test:scrapers
+```
 
 ## Required env vars
 
-`INGESTION_API_KEY` — shared secret for the ingest API.
+**All workers:** `INGESTION_API_KEY`, optional `DEALASTEAL_INGEST_URL` (defaults to `http://localhost:3000/api/ingest/deals`).
 
-Per-network:
+**Kill switch (optional):** set **`DEALASTEAL_BASE_URL`** to your site origin (e.g. `https://dealasteal.example`) so workers call `GET /api/ingest/network-config` before running. Disable a network from `/admin` without redeploying. **`INGEST_SKIP_NETWORK_GATE=1`** skips the check (local dev).
 
-- Amazon PA-API: `AMAZON_PAAPI_ACCESS_KEY`, `AMAZON_PAAPI_SECRET_KEY`,
-  `AMAZON_PAAPI_PARTNER_TAG`, `AMAZON_PAAPI_HOST`,
-  `AMAZON_PAAPI_REGION`, `AMAZON_PAAPI_MARKETPLACE`,
-  `AMAZON_MERCHANT_ID` (UUID of `merchants` row for Amazon).
-- Walmart: `WALMART_CONSUMER_ID`, `WALMART_PRIVATE_KEY_PATH`,
-  `WALMART_KEY_VERSION`, `WALMART_MERCHANT_ID`.
-- eBay: `EBAY_CLIENT_ID`, `EBAY_CLIENT_SECRET`, `EBAY_CAMPAIGN_ID`,
-  `EBAY_MERCHANT_ID`.
+### Amazon PA-API
+
+- `AMAZON_PAAPI_ACCESS_KEY`, `AMAZON_PAAPI_SECRET_KEY`, `AMAZON_PAAPI_PARTNER_TAG`
+- `AMAZON_MERCHANT_ID` — UUID of the `merchants` row for Amazon
+- Optional: `AMAZON_PAAPI_HOST` (default `webservices.amazon.com`), `AMAZON_PAAPI_REGION` (default `us-east-1`), `AMAZON_PAAPI_MARKETPLACE` (default `www.amazon.com`), `AMAZON_PAAPI_MIN_INTERVAL` (default `1.0` seconds between calls)
+
+### Walmart Affiliate
+
+- `WALMART_CONSUMER_ID`, `WALMART_PRIVATE_KEY_PATH` (PEM PKCS#8), `WALMART_KEY_VERSION`, `WALMART_MERCHANT_ID`
+- Optional: `WALMART_API_BASE` (default `https://developer.api.walmart.com`), `WALMART_FEED_PATH` (default special-buys feed path)
+
+### eBay Partner Network
+
+- `EBAY_CLIENT_ID`, `EBAY_CLIENT_SECRET`, `EBAY_CAMPAIGN_ID`, `EBAY_MERCHANT_ID`
+- Optional: `EBAY_SEARCH_QUERY` (default `electronics deals`), `EBAY_SEARCH_LIMIT`, `EBAY_MARKETPLACE_ID` (default `EBAY_US`), `EBAY_MIN_INTERVAL`
+
+### Best Buy (Impact-shaped catalog)
+
+- `BESTBUY_MERCHANT_ID`, `INGESTION_API_KEY`
+- **One of:** `BESTBUY_IMPACT_FIXTURE_PATH` (JSON array on disk) **or** `BESTBUY_IMPACT_CATALOG_URL` (HTTPS JSON array)
+- Optional: `BESTBUY_IMPACT_BEARER` when the catalog URL needs `Authorization: Bearer`
+
+### Target (Impact-shaped catalog)
+
+- `TARGET_MERCHANT_ID`, `INGESTION_API_KEY`
+- **One of:** `TARGET_IMPACT_FIXTURE_PATH` **or** `TARGET_IMPACT_CATALOG_URL`
+- Optional: `TARGET_IMPACT_BEARER`
 
 ## Where the data lands
 
-Each template's `_normalize_*` function produces a dict matching
-`DealIngestSchema`. After the migration `20260425000000_v2_catalog_evolution.sql`
-runs, the schema accepts: `currency`, `merchant_sku`, `asin`, `gtin`,
-`brand`, `rating`, `rating_count`, `availability`, `last_seen_at` in the
-**ingest body** as well as the existing fields. The Next.js API records
-each ingest row, upserts on `(merchant_id, ingest_external_id)`, and
-appends a `price_history` snapshot when the price changed.
+Each worker maps vendor JSON to `DealIngestSchema` (`src/types/schemas.ts`).
+Upserts use `ingest_external_id` (`amazon:<ASIN>`, `walmart:<itemId>`, `ebay:<itemId>`,
+`bestbuy:<sku>`, `target:<tcin>`). The
+Next.js API records each ingest row and appends `price_history` when the
+price changes.

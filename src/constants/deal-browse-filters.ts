@@ -75,11 +75,18 @@ export function normalizeLootDealsParam(raw: string | undefined | null): boolean
 }
 
 /** Home browse grid ordering (URL ``sort=``). */
-export const DEAL_SORT_KEYS = ['newest', 'discount_desc', 'price_asc', 'price_desc'] as const;
+export const DEAL_SORT_KEYS = [
+  'relevance',
+  'newest',
+  'discount_desc',
+  'price_asc',
+  'price_desc',
+] as const;
 
 export type DealSortKey = (typeof DEAL_SORT_KEYS)[number];
 
 export const DEAL_SORT_LABELS: Record<DealSortKey, string> = {
+  relevance: 'Best match',
   newest: 'Newest',
   discount_desc: 'Best discount',
   price_asc: 'Price: low to high',

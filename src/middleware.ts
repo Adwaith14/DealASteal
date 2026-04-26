@@ -31,7 +31,33 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (request.nextUrl.pathname.startsWith('/admin')) {
+    if (!user) {
+      const login = request.nextUrl.clone();
+      login.pathname = '/login';
+      login.search = '';
+      const nextPath = `${request.nextUrl.pathname}${request.nextUrl.search}`;
+      login.searchParams.set('next', nextPath.startsWith('/') ? nextPath : '/admin');
+      return NextResponse.redirect(login);
+    }
+  }
+
+  const country =
+    request.headers.get('x-vercel-ip-country')?.trim().toUpperCase().slice(0, 2) ||
+    request.headers.get('cf-ipcountry')?.trim().toUpperCase().slice(0, 2) ||
+    '';
+  if (country.length === 2) {
+    supabaseResponse.cookies.set('das_country', country, {
+      path: '/',
+      maxAge: 60 * 60 * 24,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+    });
+  }
 
   return supabaseResponse;
 }
@@ -41,6 +67,6 @@ export const config = {
     /*
      * Match all request paths except static assets and image optimization.
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|sw\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 };

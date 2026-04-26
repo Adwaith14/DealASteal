@@ -8,12 +8,14 @@ import {
   normalizeDealSortParam,
 } from '@/constants/deal-browse-filters';
 import { isDealCategorySlug } from '@/constants/deal-categories';
-import { dealSelectColumnsForPostgrest } from '@/lib/catalog/deals-db-schema';
+import { dealSelectColumnsForPostgrest, dealsDbHasAdminSchema } from '@/lib/catalog/deals-db-schema';
+import { isDealSearchFtsEnabled, shouldAttemptWebsearchFts } from '@/lib/deals/deal-search-query';
 import { logger } from '@/lib/observability/logger';
 import { DEALS_UNAVAILABLE_WITHOUT_PUBLIC_SUPABASE } from '@/lib/supabase/deals-db-unavailable-message';
 import { getSupabaseServerAnon } from '@/lib/supabase/server';
 import type { Deal } from '@/types/database.types';
 import { logPostgrestError } from './log-postgrest-error';
+import { tryFetchActiveDealsFts } from './deals-fts';
 import { mapDealsPostgrestError } from './map-deals-postgrest-user-message';
 
 const log = logger.child('catalog');
@@ -28,7 +30,7 @@ const UUID_RE =
 export type ActiveDealsQuery = {
   page?: number;
   pageSize?: number;
-  /** Plain-text substring matched with case-insensitive ``ILIKE`` on ``title``. */
+  /** Search text: Phase 17 FTS (``websearch_to_tsquery``) when enabled, else ``ILIKE`` on ``title``. */
   query?: string;
   /** URL ``category`` param; only known slugs apply a filter. */
   category?: string;
@@ -164,6 +166,28 @@ export async function getActiveDeals(
         error: DEALS_UNAVAILABLE_WITHOUT_PUBLIC_SUPABASE,
       };
     }
+
+    if (
+      search &&
+      isDealSearchFtsEnabled() &&
+      shouldAttemptWebsearchFts(search)
+    ) {
+      const fts = await tryFetchActiveDealsFts({
+        query: search,
+        page,
+        pageSize,
+        categorySlug,
+        storeKey,
+        minDiscount,
+        maxPrice,
+        lootOnly,
+        sortKey,
+      });
+      if (fts) {
+        return fts;
+      }
+    }
+
     let builder = supabase
       .from('deals')
       .select(dealSelectColumnsForPostgrest(), { count: 'exact' })
@@ -194,7 +218,14 @@ export async function getActiveDeals(
       builder = builder.eq('is_loot_deal', true);
     }
 
+    if (dealsDbHasAdminSchema()) {
+      builder = builder.order('admin_pinned_at', { ascending: false, nullsFirst: false });
+    }
+
     switch (sortKey) {
+      case 'relevance':
+        builder = builder.order('created_at', { ascending: false });
+        break;
       case 'discount_desc':
         builder = builder
           .order('discount_percentage', { ascending: false })
@@ -227,7 +258,7 @@ export async function getActiveDeals(
       };
     }
 
-    const deals = (data ?? []) as Deal[];
+    const deals = (data ?? []) as unknown as Deal[];
     const totalCount = count ?? deals.length;
     const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
@@ -307,7 +338,7 @@ export async function getActiveDealById(id: string): Promise<ActiveDealByIdResul
       };
     }
 
-    return { ok: true, deal: data as Deal };
+    return { ok: true, deal: data as unknown as Deal };
   } catch (cause) {
     const message =
       cause instanceof Error ? cause.message : 'Unexpected error loading deal';
@@ -321,3 +352,6 @@ export async function getActiveDealById(id: string): Promise<ActiveDealByIdResul
     };
   }
 }
+
+/** Phase 17 — alias for callers that prefer a search-oriented name. */
+export const searchDeals = getActiveDeals;

@@ -1,0 +1,12 @@
+[
+  {
+    "tcin": "TCIN-9001",
+    "title": "Fixture Target kettle",
+    "msrp": 44.99,
+    "sale_price": 24.99,
+    "url": "https://www.target.com/p/fixture-kettle/-/A-9001",
+    "image_url": "https://example.test/tgt.jpg",
+    "brand": "FixtureHome",
+    "currency": "USD"
+  }
+]

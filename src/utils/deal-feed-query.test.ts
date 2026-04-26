@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildHomeDealListHref } from './deal-feed-query';
+import { buildDealListHref, buildHomeDealListHref } from './deal-feed-query';
 
 describe('buildHomeDealListHref', () => {
   it('returns / when no params', () => {
@@ -40,5 +40,17 @@ describe('buildHomeDealListHref', () => {
 
   it('omits sort for newest', () => {
     expect(buildHomeDealListHref({ sort: 'newest', q: 'hub' })).toBe('/?q=hub');
+  });
+
+  it('includes sort=relevance in URL', () => {
+    expect(buildHomeDealListHref({ sort: 'relevance', q: 'hub' })).toBe('/?q=hub&sort=relevance');
+  });
+});
+
+describe('buildDealListHref', () => {
+  it('uses /search base', () => {
+    expect(buildDealListHref('/search', { q: 'laptop', page: 2 })).toBe(
+      '/search?page=2&q=laptop'
+    );
   });
 });

@@ -1,0 +1,12 @@
+[
+  {
+    "sku": "BB-10001",
+    "title": "Fixture Best Buy soundbar",
+    "list_price": 299.99,
+    "sale_price": 199.99,
+    "affiliate_url": "https://www.bestbuy.com/site/fixture-soundbar/10001.p",
+    "image_url": "https://example.test/bb.jpg",
+    "brand": "FixtureBrand",
+    "currency": "USD"
+  }
+]

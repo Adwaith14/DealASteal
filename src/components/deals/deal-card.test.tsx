@@ -78,7 +78,7 @@ describe('DealCard', () => {
     render(<DealCard deal={buildDeal()} dealPageUrl={`${TEST_ORIGIN}/deals/deal-1`} />);
 
     const link = screen.getByRole('link', { name: /grab the deal/i });
-    expect(link).toHaveAttribute('href', 'https://example.com/deal');
+    expect(link).toHaveAttribute('href', '/api/click/deal-1');
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
   });

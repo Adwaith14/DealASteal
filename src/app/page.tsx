@@ -7,17 +7,20 @@ import { HomeFilterBar } from '@/components/deals/HomeFilterBar';
 import { HorizontalDealScroll } from '@/components/deals/HorizontalDealScroll';
 import { ExpandableDealsSection } from '@/components/deals/ExpandableDealsSection';
 import { LatestDealsSection } from '@/components/deals/LatestDealsSection';
-import { DealCard } from '@/components/deals/DealCard';
-import { DealsPagination } from '@/components/deals/DealsPagination';
+import { DealBrowseView } from '@/components/deals/DealBrowseView';
+import { BestDealHero } from '@/components/sections/BestDealHero';
 import {
   getExpiringDeals,
   getCouponDeals,
   getTopDeals,
   getHotDeals,
   getLatestDeals,
+  getBestDealOfDay,
 } from '@/services/api/deals-sections';
 import { getActiveDeals } from '@/services/api/deals';
 import { getSiteOrigin } from '@/utils/site-origin';
+import { createSupabaseServerClient } from '@/lib/supabase/ssr-server';
+import { getForUser } from '@/services/api/recommendations';
 import {
   normalizeDealSortParam,
   normalizeLootDealsParam,
@@ -58,7 +61,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     typeof sp.max_price === 'string' ? sp.max_price : ''
   );
   const appliedLootOnly = normalizeLootDealsParam(typeof sp.loot === 'string' ? sp.loot : '');
-  const appliedSort = normalizeDealSortParam(typeof sp.sort === 'string' ? sp.sort : '');
+  const sortFromUrl = typeof sp.sort === 'string' ? sp.sort : undefined;
+  const appliedSort = normalizeDealSortParam(
+    sortFromUrl ?? (q.length > 0 ? 'relevance' : undefined)
+  );
 
   const isSearchMode =
     q.length > 0 ||
@@ -89,6 +95,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         <SiteHeader initialSearchQuery={q} />
         <HomeHeroSection>
           <HomeFilterBar
+            listBasePath="/"
             searchQuery={q}
             activeCategorySlug={categoryForFilter}
             activeStore={appliedStore}
@@ -103,52 +110,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
         <PageWithAdRails className="flex-1 px-3 pb-8 pt-4 sm:px-4 lg:px-6">
           <main id="main-content" className="w-full">
-          <div className="mb-6">
-            <h1 className="text-xl font-extrabold text-gray-900 sm:text-2xl">
-              {q ? `Results for "${q}"` : 'Browse Deals'}
-            </h1>
-            {result.ok && (
-              <p className="mt-1 text-sm text-gray-500">
-                {result.totalCount} deal{result.totalCount !== 1 ? 's' : ''} found
-              </p>
-            )}
-          </div>
-
-          {!result.ok ? (
-            <div role="alert" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-4 text-amber-950">
-              <p className="font-semibold">Could not load deals right now.</p>
-              <p className="mt-1 text-sm">{result.error}</p>
-            </div>
-          ) : result.deals.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-gray-300 bg-white px-6 py-14 text-center">
-              <p className="text-lg font-semibold text-gray-900">No deals match your search.</p>
-              <p className="mt-2 text-sm text-gray-500">Try different keywords or clear the search.</p>
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4">
-                {result.deals.map((deal, i) => (
-                  <DealCard
-                    key={deal.id}
-                    deal={deal}
-                    priority={i < 8}
-                    dealPageUrl={`${origin}/deals/${deal.id}`}
-                  />
-                ))}
-              </div>
-              <DealsPagination
-                page={result.page}
-                totalPages={result.totalPages}
-                query={q}
-                categorySlug={result.appliedCategorySlug}
-                store={result.appliedStore}
-                minDiscount={result.appliedMinDiscount}
-                maxPrice={result.appliedMaxPrice}
-                lootDeals={result.appliedLootOnly}
-                sort={result.appliedSort}
-              />
-            </>
-          )}
+          <DealBrowseView result={result} origin={origin} q={q} listBasePath="/" />
           </main>
         </PageWithAdRails>
 
@@ -159,20 +121,29 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   }
 
   /* ── Full homepage (no active search) ── */
-  const [expiringSection, couponSection, topResult, hotResult, latestResult] = await Promise.all([
-    getExpiringDeals(20),
-    getCouponDeals(16),
-    getTopDeals({ limit: 6 }),
-    getHotDeals({ limit: 6 }),
-    getLatestDeals({ page: 1, pageSize: 36 }),
-  ]);
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const [expiringSection, couponSection, topResult, hotResult, latestResult, bestDealResult, forYouDeals] =
+    await Promise.all([
+      getExpiringDeals(20),
+      getCouponDeals(16),
+      getTopDeals({ limit: 6 }),
+      getHotDeals({ limit: 6 }),
+      getLatestDeals({ page: 1, pageSize: 36 }),
+      getBestDealOfDay(),
+      user ? getForUser(user.id, 12) : Promise.resolve([]),
+    ]);
 
   const sectionFetchErrors = collectUniqueSectionFetchErrors(
     expiringSection.fetchError,
     couponSection.fetchError,
     topResult.fetchError,
     hotResult.fetchError,
-    latestResult.fetchError
+    latestResult.fetchError,
+    bestDealResult.fetchError
   );
 
   const couponCodeMap = new Map<string, string>(
@@ -214,6 +185,18 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               </ul>
             )}
           </div>
+        ) : null}
+
+        <BestDealHero deal={bestDealResult.deal} origin={origin} />
+
+        {forYouDeals.length > 0 ? (
+          <HorizontalDealScroll
+            icon="✨"
+            title="For you"
+            subtitle="Based on your recent clicks"
+            deals={forYouDeals}
+            origin={origin}
+          />
         ) : null}
 
         {/* ── Expiring Soon ── */}

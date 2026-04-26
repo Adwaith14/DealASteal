@@ -21,16 +21,19 @@ alter table public.deals
   add column if not exists last_seen_at  timestamptz,
   add column if not exists score         double precision;
 
+alter table public.deals drop constraint if exists deals_currency_chk;
 alter table public.deals
-  add constraint if not exists deals_currency_chk
+  add constraint deals_currency_chk
   check (char_length(currency) between 3 and 3);
 
+alter table public.deals drop constraint if exists deals_rating_chk;
 alter table public.deals
-  add constraint if not exists deals_rating_chk
+  add constraint deals_rating_chk
   check (rating is null or (rating >= 0 and rating <= 5));
 
+alter table public.deals drop constraint if exists deals_rating_count_chk;
 alter table public.deals
-  add constraint if not exists deals_rating_count_chk
+  add constraint deals_rating_count_chk
   check (rating_count is null or rating_count >= 0);
 
 create index if not exists deals_active_score_idx

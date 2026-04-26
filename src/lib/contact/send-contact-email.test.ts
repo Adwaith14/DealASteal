@@ -1,21 +1,20 @@
 /** @vitest-environment node */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const baseline = { ...process.env };
-
 beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn());
 });
 
 afterEach(() => {
-  process.env = { ...baseline };
+  vi.unstubAllEnvs();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
 describe('sendContactEmail', () => {
   it('returns skipped_dev when CONTACT_EMAIL_SKIP_SEND=1 in development', async () => {
-    process.env = { ...baseline, NODE_ENV: 'development', CONTACT_EMAIL_SKIP_SEND: '1' };
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('CONTACT_EMAIL_SKIP_SEND', '1');
     vi.resetModules();
     const { sendContactEmail } = await import('./send-contact-email');
     const result = await sendContactEmail({
@@ -29,10 +28,10 @@ describe('sendContactEmail', () => {
   });
 
   it('returns not_configured in development without Resend env', async () => {
-    process.env = { ...baseline, NODE_ENV: 'development' };
-    delete process.env.RESEND_API_KEY;
-    delete process.env.RESEND_FROM_EMAIL;
-    delete process.env.CONTACT_INBOUND_EMAIL;
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('RESEND_API_KEY', '');
+    vi.stubEnv('RESEND_FROM_EMAIL', '');
+    vi.stubEnv('CONTACT_INBOUND_EMAIL', '');
     vi.resetModules();
     const { sendContactEmail } = await import('./send-contact-email');
     const result = await sendContactEmail({
@@ -45,8 +44,8 @@ describe('sendContactEmail', () => {
   });
 
   it('returns error in production without Resend env', async () => {
-    process.env = { ...baseline, NODE_ENV: 'production' };
-    delete process.env.RESEND_API_KEY;
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('RESEND_API_KEY', '');
     vi.resetModules();
     const { sendContactEmail } = await import('./send-contact-email');
     const result = await sendContactEmail({
@@ -62,13 +61,10 @@ describe('sendContactEmail', () => {
   });
 
   it('calls Resend when configured', async () => {
-    process.env = {
-      ...baseline,
-      NODE_ENV: 'production',
-      RESEND_API_KEY: 're_test',
-      RESEND_FROM_EMAIL: 'DealASteal <onboarding@resend.dev>',
-      CONTACT_INBOUND_EMAIL: 'inbox@example.com',
-    };
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('RESEND_API_KEY', 're_test');
+    vi.stubEnv('RESEND_FROM_EMAIL', 'DealASteal <onboarding@resend.dev>');
+    vi.stubEnv('CONTACT_INBOUND_EMAIL', 'inbox@example.com');
     vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ id: '1' }), { status: 200 }));
     vi.resetModules();
     const { sendContactEmail } = await import('./send-contact-email');

@@ -61,18 +61,23 @@ export function SiteFooter() {
             <h3 className="text-xs font-bold uppercase tracking-widest text-white">Legal</h3>
             <ul className="mt-4 space-y-2 text-sm">
               <li>
-                <a href="/#privacy" className="hover:text-white">
+                <a href="/privacy" className="hover:text-white">
                   Privacy Policy
                 </a>
               </li>
               <li>
-                <a href="/#terms" className="hover:text-white">
+                <a href="/terms" className="hover:text-white">
                   Terms
                 </a>
               </li>
               <li>
-                <a href="/#affiliate" className="hover:text-white">
+                <a href="/affiliate-disclosure" className="hover:text-white">
                   Affiliate Disclosure
+                </a>
+              </li>
+              <li>
+                <a href="/dmca" className="hover:text-white">
+                  DMCA
                 </a>
               </li>
             </ul>
@@ -80,8 +85,9 @@ export function SiteFooter() {
 
           <div id="affiliate" className="scroll-mt-24">
             <p className="text-sm leading-relaxed text-gray-400">
-              As an Amazon Associate we earn from qualifying purchases. Prices and availability are
-              subject to change.
+              DealASteal earns commissions from qualifying purchases through affiliate links (FTC disclosure).
+              As an Amazon Associate we earn from qualifying purchases. Prices and availability are subject to
+              change.
             </p>
           </div>
         </div>
@@ -91,7 +97,13 @@ export function SiteFooter() {
           className="mt-12 flex flex-col gap-2 border-t border-gray-700/80 pt-8 text-xs text-gray-500 sm:flex-row sm:items-center sm:justify-between"
         >
           <p>© {new Date().getFullYear()} DealASteal. All rights reserved.</p>
-          <p>Prices may vary from actual store listing.</p>
+          <p className="max-w-xl text-right sm:text-left">
+            Prices may vary from actual store listing.{' '}
+            <a href="/affiliate-disclosure" className="text-gray-400 underline hover:text-white">
+              Affiliate disclosure
+            </a>
+            .
+          </p>
         </div>
       </div>
     </footer>

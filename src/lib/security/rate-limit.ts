@@ -1,16 +1,13 @@
 import 'server-only';
 
+import { createUpstashRateLimiter } from '@/lib/security/redis-rate-limiter';
+
 /**
- * In-memory token bucket per identifier (e.g. caller IP or API key).
+ * Distributed or in-memory token bucket per identifier (e.g. caller IP or API key).
  *
- * Trade-offs:
- *   - Per-instance only — a multi-instance deployment (Vercel Edge fan-out,
- *     multiple Node containers) will leak through. For production, replace
- *     the in-memory ``Map`` with a Redis/Upstash-backed store. The exposed
- *     ``RateLimiter`` interface is identical so the swap is mechanical.
- *   - Sweep is lazy on read; entries with ``expiresAt`` in the past are
- *     dropped on the next call from that key. A periodic timer is avoided
- *     so the module is safe in serverless cold-start environments.
+ * When ``UPSTASH_REDIS_REST_URL`` and ``UPSTASH_REDIS_REST_TOKEN`` are set, limits
+ * are enforced via Upstash Redis (``createRateLimiterFromEnv``). Otherwise the
+ * in-memory ``Map`` is used (per-instance only).
  */
 export interface RateLimitVerdict {
   /** ``true`` when the caller is under quota. */
@@ -22,7 +19,7 @@ export interface RateLimitVerdict {
 }
 
 export interface RateLimiter {
-  consume(key: string, cost?: number): RateLimitVerdict;
+  consume(key: string, cost?: number): Promise<RateLimitVerdict>;
 }
 
 interface BucketState {
@@ -39,6 +36,11 @@ export interface RateLimiterOptions {
   now?: () => number;
 }
 
+export interface DistributedRateLimiterOptions extends RateLimiterOptions {
+  /** Stable id per route (Upstash key prefix segment), e.g. ``ingest-deals``. */
+  id: string;
+}
+
 export function createInMemoryRateLimiter({
   capacity,
   windowMs,
@@ -49,7 +51,7 @@ export function createInMemoryRateLimiter({
   const buckets = new Map<string, BucketState>();
 
   return {
-    consume(key: string, cost = 1): RateLimitVerdict {
+    async consume(key: string, cost = 1): Promise<RateLimitVerdict> {
       const t = now();
       const existing = buckets.get(key);
       if (existing == null || existing.expiresAt <= t) {
@@ -64,6 +66,24 @@ export function createInMemoryRateLimiter({
       return { ok: true, remaining: existing.tokens, resetAt: existing.expiresAt };
     },
   };
+}
+
+/**
+ * Prefer Upstash when env is configured; otherwise in-memory (same ``RateLimiter`` interface).
+ */
+export function createRateLimiterFromEnv(config: DistributedRateLimiterOptions): RateLimiter {
+  const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
+  if (url && token) {
+    return createUpstashRateLimiter({
+      url,
+      token,
+      capacity: config.capacity,
+      windowMs: config.windowMs,
+      prefix: `das:rl:${config.id}`,
+    });
+  }
+  return createInMemoryRateLimiter(config);
 }
 
 /** Best-effort caller identification: prefer the API key (for ingest) then real IP. */

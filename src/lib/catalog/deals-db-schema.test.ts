@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   dealSelectColumnsForPostgrest,
+  dealsDbHasAdminSchema,
   dealsDbHasV2Schema,
   stripV2DealInsertColumns,
 } from './deals-db-schema';
@@ -40,6 +41,25 @@ describe('dealSelectColumnsForPostgrest', () => {
     const s = dealSelectColumnsForPostgrest();
     expect(s).toContain('currency');
     expect(s).toContain('score');
+  });
+
+  it('includes admin columns when DEALS_ADMIN_SCHEMA=1', () => {
+    vi.stubEnv('DEALS_DB_V2', '');
+    vi.stubEnv('DEALS_ADMIN_SCHEMA', '1');
+    const s = dealSelectColumnsForPostgrest();
+    expect(s).toContain('admin_hidden');
+    expect(s).toContain('admin_pinned_at');
+  });
+});
+
+describe('dealsDbHasAdminSchema', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('is true when DEALS_ADMIN_SCHEMA=1', () => {
+    vi.stubEnv('DEALS_ADMIN_SCHEMA', '1');
+    expect(dealsDbHasAdminSchema()).toBe(true);
   });
 });
 

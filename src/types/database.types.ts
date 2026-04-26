@@ -58,6 +58,10 @@ export interface Deal {
   last_seen_at?: string | null;
   /** Aggregate "best deal" score; populated by the scorer job. */
   score?: number | null;
+  /** Phase 23 — hidden from public catalog (RLS); optional until ``DEALS_ADMIN_SCHEMA=1`` selects. */
+  admin_hidden?: boolean;
+  /** Phase 23 — non-null when pinned for homepage ordering. */
+  admin_pinned_at?: string | null;
 }
 
 export type CouponDiscountType = 'percent' | 'fixed';
@@ -79,10 +83,13 @@ export interface Coupon {
 }
 
 /** ``public.profiles`` — per-user JSON preferences (Phase 10). */
+export type ProfileRole = 'user' | 'admin';
+
 export interface Profile {
   id: string;
   preferences: Record<string, unknown>;
   updated_at: string;
+  role?: ProfileRole;
 }
 
 /** ``public.saved_deals`` composite row (Phase 10). */
@@ -101,6 +108,21 @@ export interface PriceHistoryRow {
   original: number | null;
   currency: string;
   source: string | null;
+}
+
+/** ``public.price_alerts`` — email when deal price crosses at or below threshold (Phase 20). */
+export interface PriceAlert {
+  id: string;
+  user_id: string;
+  deal_id: string;
+  threshold_price: number;
+  currency: string;
+  notify_email: string;
+  is_active: boolean;
+  is_below_threshold: boolean;
+  last_fired_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 /** ``public.click_events`` — outbound affiliate click telemetry. */

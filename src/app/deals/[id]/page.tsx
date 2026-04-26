@@ -6,6 +6,7 @@ import { FloatingContact } from '@/components/layout/FloatingContact';
 import { SiteFooter } from '@/components/layout/SiteFooter';
 import { SiteHeader } from '@/components/layout/SiteHeader';
 import { buildDealPdpMetadata } from '@/lib/deals/build-deal-pdp-metadata';
+import { getApplicableCouponsForDeal } from '@/services/api/coupons';
 import { getSiteOrigin } from '@/utils/site-origin';
 import { createSupabaseServerClient } from '@/lib/supabase/ssr-server';
 import { getActiveDealForPdp } from './get-active-deal-for-pdp';
@@ -71,10 +72,38 @@ export default async function DealDetailPage({ params }: PageProps) {
     initialSaved = row != null;
   }
 
+  let priceDropAlert: {
+    signedIn: boolean;
+    initial: { id: string; thresholdPrice: number } | null;
+  };
+  if (user) {
+    const { data: pa } = await supabase
+      .from('price_alerts')
+      .select('id, threshold_price')
+      .eq('user_id', user.id)
+      .eq('deal_id', result.deal.id)
+      .eq('is_active', true)
+      .maybeSingle();
+    priceDropAlert = {
+      signedIn: true,
+      initial: pa ? { id: pa.id, thresholdPrice: pa.threshold_price } : null,
+    };
+  } else {
+    priceDropAlert = { signedIn: false, initial: null };
+  }
+
+  const couponsResult = await getApplicableCouponsForDeal(result.deal.id, result.deal.merchant_id);
+
   return (
     <div className="flex min-h-dvh flex-col bg-[#f5f5f5] text-gray-900">
       <SiteHeader initialSearchQuery="" />
-      <DealDetailView deal={result.deal} dealPageUrl={dealPageUrl} initialSaved={initialSaved} />
+      <DealDetailView
+        deal={result.deal}
+        coupons={couponsResult.ok ? couponsResult.coupons : []}
+        dealPageUrl={dealPageUrl}
+        initialSaved={initialSaved}
+        priceDropAlert={priceDropAlert}
+      />
       <SiteFooter />
       <FloatingContact />
     </div>

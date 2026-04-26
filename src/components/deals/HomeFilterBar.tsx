@@ -13,9 +13,11 @@ import {
   type DealStoreFilterKey,
 } from '@/constants/deal-browse-filters';
 import { DEAL_CATEGORY_NAV } from '@/constants/deal-categories';
-import { buildHomeDealListHref } from '@/utils/deal-feed-query';
+import { buildDealListHref, type DealListBasePath } from '@/utils/deal-feed-query';
 
 type HomeFilterBarProps = {
+  /** Where facet URLs resolve (home vs ``/search``). */
+  listBasePath?: DealListBasePath;
   searchQuery: string;
   activeCategorySlug: string | null;
   activeStore: DealStoreFilterKey | null;
@@ -51,6 +53,7 @@ function AffiliateDisclaimer() {
 }
 
 export function HomeFilterBar({
+  listBasePath = '/',
   searchQuery,
   activeCategorySlug,
   activeStore,
@@ -89,7 +92,7 @@ export function HomeFilterBar({
         patch.maxPrice !== undefined ? patch.maxPrice ?? undefined : activeMaxPrice ?? undefined;
       const sort =
         patch.sort !== undefined ? patch.sort ?? 'newest' : activeSort;
-      return buildHomeDealListHref({
+      return buildDealListHref(listBasePath, {
         q: trimmed || undefined,
         category,
         store,
@@ -100,6 +103,7 @@ export function HomeFilterBar({
       });
     },
     [
+      listBasePath,
       activeCategorySlug,
       activeLootOnly,
       activeMaxPrice,

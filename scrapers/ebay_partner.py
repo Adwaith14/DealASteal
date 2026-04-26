@@ -1,107 +1,74 @@
 #!/usr/bin/env python3
-"""eBay Partner Network (EPN) Browse API ingest template.
-
-eBay uses OAuth 2.0 client-credentials. Steps:
-
-1. Register an EPN account, get a Campaign ID.
-2. Create an OAuth app in eBay Developer Program (production).
-3. Exchange ``client_id:client_secret`` for an application access token
-   (``grant_type=client_credentials``, scope ``buy.browse``), then call
-   ``GET /buy/browse/v1/item_summary/search?q=...&filter=...&limit=...``
-   with ``Authorization: Bearer <token>`` plus
-   ``X-EBAY-C-MARKETPLACE-ID: EBAY_US`` and
-   ``X-EBAY-C-ENDUSERCTX: affiliateCampaignId=<EBAY_CAMPAIGN_ID>``.
-
-This template handles no auth or HTTP — fill those in before running.
-"""
+"""eBay Partner Network — Browse API ingest worker (OAuth + search)."""
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
-from typing import Any, Iterable
 
 from base_scraper import BaseDealScraper, DealIngestPayload
+
+from networks.ebay_client import EbayBrowseClient, EbayHttpError
+from networks.ingest_gate import check_ingest_enabled_or_exit
+from networks.normalize import normalize_ebay_browse_item
+from networks.worker_logging import configure_worker_logging
+
+log = logging.getLogger("dealasteal.ebay_partner")
 
 
 def _required_env(name: str) -> str:
     value = os.getenv(name, "").strip()
     if not value:
-        print(
-            f"[ebay_partner] Missing env var {name!r}. See scrapers/README.md.",
-            file=sys.stderr,
-            flush=True,
-        )
+        log.error("missing env var: %s", name, extra={"component": "ebay_partner", "msg_key": name})
+        print(f"[ebay_partner] Missing env var {name!r}. See scrapers/README.md.", file=sys.stderr, flush=True)
         sys.exit(1)
     return value
 
 
-def _normalize_ebay_item(item: dict[str, Any], merchant_id: str) -> DealIngestPayload | None:
-    """eBay Browse API ``item_summary`` response.
-
-    Real shape (truncated):
-        { "itemId": "v1|123|0",
-          "title": "...",
-          "price": {"value": "29.99", "currency": "USD"},
-          "marketingPrice": {"originalPrice": {"value": "59.99", "currency": "USD"}},
-          "itemAffiliateWebUrl": "https://...",
-          "image": {"imageUrl": "https://..."}}
-    """
-    item_id = item.get("itemId")
-    title = item.get("title")
-    price = item.get("price") or {}
-    marketing = item.get("marketingPrice") or {}
-    original = marketing.get("originalPrice") or {}
-    affiliate_url = item.get("itemAffiliateWebUrl") or item.get("itemWebUrl")
-
-    try:
-        sale_value = float(price.get("value", 0))
-        msrp_value = float(original.get("value", 0)) if original else 0.0
-    except (TypeError, ValueError):
-        return None
-
-    if not (item_id and title and affiliate_url and sale_value > 0):
-        return None
-    if msrp_value <= sale_value:
-        return None
-
-    payload: DealIngestPayload = {
-        "merchant_id": merchant_id,
-        "title": str(title),
-        "original_price": msrp_value,
-        "discount_price": sale_value,
-        "affiliate_url": str(affiliate_url),
-        "is_loot_deal": (msrp_value - sale_value) / msrp_value >= 0.50,
-        "ingest_external_id": f"ebay:{item_id}",
-    }
-    payload["currency"] = price.get("currency") or "USD"
-    if image := (item.get("image") or {}).get("imageUrl"):
-        payload["image_url"] = str(image)
-    if (condition := item.get("condition")):
-        payload["availability"] = str(condition).lower()
-    return payload
-
-
-def _fetch_ebay_items() -> Iterable[dict[str, Any]]:
-    """Stub. Replace with eBay Browse API search call."""
-    return []
-
-
 def main() -> int:
-    merchant_id = _required_env("EBAY_MERCHANT_ID")
-    _required_env("EBAY_CLIENT_ID")
-    _required_env("EBAY_CLIENT_SECRET")
-    _required_env("EBAY_CAMPAIGN_ID")
-    _required_env("INGESTION_API_KEY")
+    configure_worker_logging()
+    check_ingest_enabled_or_exit("ebay", log=log, component="ebay_partner")
 
+    merchant_id = _required_env("EBAY_MERCHANT_ID")
+    client_id = _required_env("EBAY_CLIENT_ID")
+    client_secret = _required_env("EBAY_CLIENT_SECRET")
+    campaign_id = _required_env("EBAY_CAMPAIGN_ID")
+    _ = _required_env("INGESTION_API_KEY")
+
+    query = os.getenv("EBAY_SEARCH_QUERY", "electronics deals").strip() or "electronics deals"
+    limit = int(os.getenv("EBAY_SEARCH_LIMIT", "20").strip() or "20")
+    marketplace = os.getenv("EBAY_MARKETPLACE_ID", "EBAY_US").strip() or "EBAY_US"
+
+    client = EbayBrowseClient(
+        client_id=client_id,
+        client_secret=client_secret,
+        campaign_id=campaign_id,
+        marketplace_id=marketplace,
+        min_interval_seconds=float(os.getenv("EBAY_MIN_INTERVAL", "0.35") or "0.35"),
+    )
     scraper = BaseDealScraper()
     sent = 0
-    for item in _fetch_ebay_items():
-        payload = _normalize_ebay_item(item, merchant_id)
-        if payload is None:
+    try:
+        items = client.search_item_summaries(q=query, limit=limit)
+    except EbayHttpError as exc:
+        log.error(
+            "ebay search failed",
+            extra={"component": "ebay_partner", "http_status": exc.http_status},
+        )
+        print(f"[ebay_partner] API error: {exc}", file=sys.stderr, flush=True)
+        return 1
+
+    log.info("search ok", extra={"component": "ebay_partner", "items": len(items), "q": query})
+    for item in items:
+        normalized = normalize_ebay_browse_item(item, merchant_id=merchant_id)
+        if normalized is None:
             continue
-        if scraper.push_to_api(payload):
+        payload: DealIngestPayload = normalized  # type: ignore[assignment]
+        if scraper.push_to_api(dict(payload)):
             sent += 1
+
+    log.info("run complete", extra={"component": "ebay_partner", "sent": sent})
     print(f"[ebay_partner] Sent {sent} deal(s).", flush=True)
     return 0
 

@@ -1,8 +1,12 @@
 import { createHash } from 'node:crypto';
 import { NextResponse, type NextRequest } from 'next/server';
+import { readAmazonAssociateTagFromEnv, withAmazonAssociateTag } from '@/lib/affiliate/amazon-associate-link';
 import { logger } from '@/lib/observability/logger';
-import { callerIdentity, createInMemoryRateLimiter } from '@/lib/security/rate-limit';
+import { measureSlo } from '@/lib/observability/slo-emit';
+import { withWebSpan } from '@/lib/observability/web-tracing';
+import { callerIdentity, createRateLimiterFromEnv } from '@/lib/security/rate-limit';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
+import { createSupabaseServerClient } from '@/lib/supabase/ssr-server';
 import { getActiveDealById } from '@/services/api/deals';
 
 export const runtime = 'nodejs';
@@ -21,7 +25,8 @@ export const runtime = 'nodejs';
  * even when click logging fails. Logging is best-effort, never blocking.
  */
 
-const clickLimiter = createInMemoryRateLimiter({
+const clickLimiter = createRateLimiterFromEnv({
+  id: 'click-bounce',
   // Generous: a real user can click 30+ links/min while exploring the site.
   capacity: 200,
   windowMs: 60_000,
@@ -47,7 +52,7 @@ function isAllowedAffiliateUrl(raw: string): boolean {
   }
 }
 
-export async function GET(
+async function handleClickGet(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
@@ -56,7 +61,7 @@ export async function GET(
     return NextResponse.json({ error: 'invalid_id' }, { status: 400 });
   }
 
-  const verdict = clickLimiter.consume(callerIdentity(request.headers));
+  const verdict = await clickLimiter.consume(callerIdentity(request.headers));
   if (!verdict.ok) {
     return NextResponse.json({ error: 'too_many_requests' }, { status: 429 });
   }
@@ -66,7 +71,12 @@ export async function GET(
     return NextResponse.json({ error: result.error }, { status: result.error === 'not_found' ? 404 : 500 });
   }
 
-  const target = result.deal.affiliate_url;
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const target = withAmazonAssociateTag(result.deal.affiliate_url, readAmazonAssociateTagFromEnv());
   if (!isAllowedAffiliateUrl(target)) {
     log.warn('blocked outbound URL', { dealId: id });
     return NextResponse.json({ error: 'invalid_affiliate_url' }, { status: 422 });
@@ -76,6 +86,7 @@ export async function GET(
   void recordClick({
     dealId: id,
     headers: request.headers,
+    userId: user?.id ?? null,
   }).catch((cause) => {
     log.warn('click insert failed', {
       message: cause instanceof Error ? cause.message : 'unknown',
@@ -85,12 +96,23 @@ export async function GET(
   return NextResponse.redirect(target, { status: 302 });
 }
 
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+): Promise<NextResponse> {
+  return measureSlo('click.bounce', () =>
+    withWebSpan('click.redirect', () => handleClickGet(request, context))
+  );
+}
+
 async function recordClick({
   dealId,
   headers,
+  userId,
 }: {
   dealId: string;
   headers: Headers;
+  userId: string | null;
 }): Promise<void> {
   const supabase = getSupabaseAdmin();
   const ip =
@@ -103,6 +125,7 @@ async function recordClick({
 
   await supabase.from('click_events').insert({
     deal_id: dealId,
+    user_id: userId,
     ip_hash: sha256(ip),
     ua_hash: sha256(ua),
     referrer: referrer?.slice(0, 500) ?? null,

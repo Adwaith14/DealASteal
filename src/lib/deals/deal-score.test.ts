@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Deal } from '@/types/database.types';
 import { computeDealScore, isHeadlineDeal } from './deal-score';
 
-function makeDeal(overrides: Partial<Deal> = {}): Pick<
+type DealScoreSlice = Pick<
   Deal,
   | 'discount_percentage'
   | 'discount_price'
@@ -13,7 +13,9 @@ function makeDeal(overrides: Partial<Deal> = {}): Pick<
   | 'availability'
   | 'expires_at'
   | 'created_at'
-> {
+>;
+
+function makeDeal(overrides: Partial<DealScoreSlice> = {}): DealScoreSlice {
   return {
     discount_percentage: 30,
     discount_price: 70,
@@ -86,6 +88,43 @@ describe('computeDealScore', () => {
     });
     expect(s).toBeGreaterThanOrEqual(0);
     expect(s).toBeLessThanOrEqual(100);
+  });
+
+  it('treats non-positive discount_price as no price-history match (no divide-by-zero)', () => {
+    const base = computeDealScore({
+      deal: makeDeal({ discount_price: 70, discount_percentage: 30 }),
+      lowestRecentPrice: 50,
+      now: NOW,
+    });
+    const zeroPrice = computeDealScore({
+      deal: makeDeal({ discount_price: 0, discount_percentage: 30 }),
+      lowestRecentPrice: 50,
+      now: NOW,
+    });
+    expect(zeroPrice).toBeDefined();
+    expect(Number.isFinite(zeroPrice)).toBe(true);
+    expect(zeroPrice).toBeLessThanOrEqual(base);
+  });
+
+  it('does not blow up when rating fields are null', () => {
+    const s = computeDealScore({
+      deal: makeDeal({ rating: null, rating_count: null }),
+      now: NOW,
+    });
+    expect(s).toBeGreaterThanOrEqual(0);
+    expect(s).toBeLessThanOrEqual(100);
+  });
+
+  it('drops recency to zero when created_at is in the future (clock skew)', () => {
+    const normal = computeDealScore({
+      deal: makeDeal({ created_at: '2026-04-25T12:00:00.000Z' }),
+      now: NOW,
+    });
+    const skewed = computeDealScore({
+      deal: makeDeal({ created_at: '2027-01-01T00:00:00.000Z' }),
+      now: NOW,
+    });
+    expect(skewed).toBeLessThan(normal);
   });
 });
 

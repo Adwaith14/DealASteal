@@ -1,6 +1,12 @@
 # Node / Next
 node_modules
 .next
+.next-dev
+# Serwist build output
+public/sw.js
+public/sw.js.map
+public/swe-worker-*.js
+public/swe-worker-*.js.map
 out
 dist
 .tsbuildinfo
@@ -42,3 +48,7 @@ venv/
 # Stray dev exports
 body.txt
 *.har
+
+# Supabase CLI (linked project — do not commit)
+.supabase/
+supabase/.temp/

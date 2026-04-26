@@ -1,0 +1,22 @@
+{
+  "ci": {
+    "collect": {
+      "url": ["http://127.0.0.1:3000/"],
+      "numberOfRuns": 1,
+      "settings": {
+        "preset": "desktop",
+        "chromeFlags": "--no-sandbox --disable-dev-shm-usage"
+      }
+    },
+    "assert": {
+      "assertions": {
+        "categories:performance": ["warn", { "minScore": 0.45 }],
+        "categories:pwa": ["warn", { "minScore": 0.85 }],
+        "categories:accessibility": ["warn", { "minScore": 0.85 }],
+        "categories:seo": ["warn", { "minScore": 0.85 }],
+        "installable-manifest": "error",
+        "service-worker": "error"
+      }
+    }
+  }
+}

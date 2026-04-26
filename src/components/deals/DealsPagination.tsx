@@ -1,8 +1,10 @@
 import Link from 'next/link';
 import type { DealSortKey, DealStoreFilterKey } from '@/constants/deal-browse-filters';
-import { buildHomeDealListHref } from '@/utils/deal-feed-query';
+import { buildDealListHref, type DealListBasePath } from '@/utils/deal-feed-query';
 
 type DealsPaginationProps = {
+  /** Browse results live on ``/`` (legacy) or ``/search`` (Phase 17). */
+  listBasePath?: DealListBasePath;
   page: number;
   totalPages: number;
   query: string;
@@ -18,6 +20,7 @@ type DealsPaginationProps = {
  * Server-rendered page controls (SEO-friendly links, no client JS required).
  */
 export function DealsPagination({
+  listBasePath = '/',
   page,
   totalPages,
   query,
@@ -47,7 +50,7 @@ export function DealsPagination({
     >
       {prev != null ? (
         <Link
-          href={buildHomeDealListHref({
+          href={buildDealListHref(listBasePath, {
             page: prev,
             q: query,
             category: categorySlug ?? undefined,
@@ -70,7 +73,7 @@ export function DealsPagination({
       </span>
       {next != null ? (
         <Link
-          href={buildHomeDealListHref({
+          href={buildDealListHref(listBasePath, {
             page: next,
             q: query,
             category: categorySlug ?? undefined,

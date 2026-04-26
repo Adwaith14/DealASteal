@@ -22,6 +22,37 @@ create table if not exists public.merchants (
   updated_at   timestamptz not null default now()
 );
 
+-- Older projects may already have ``merchants`` without columns this app expects
+-- (``create table if not exists`` then skips the full definition).
+alter table public.merchants add column if not exists name text;
+alter table public.merchants add column if not exists slug text;
+alter table public.merchants add column if not exists website_url text;
+alter table public.merchants add column if not exists logo_url text;
+alter table public.merchants add column if not exists description text;
+alter table public.merchants add column if not exists is_active boolean not null default true;
+alter table public.merchants add column if not exists created_at timestamptz not null default now();
+alter table public.merchants add column if not exists updated_at timestamptz not null default now();
+
+-- Stable slug for rows that predate the column (index + app expect non-null slug).
+update public.merchants
+set slug = 'm-' || replace(id::text, '-', '')
+where slug is null or btrim(slug) = '';
+
+update public.merchants
+set name = 'Merchant'
+where name is null or btrim(name) = '';
+
+alter table public.merchants alter column name set not null;
+alter table public.merchants alter column slug set not null;
+
+do $$
+begin
+  alter table public.merchants add constraint merchants_slug_key unique (slug);
+exception
+  when duplicate_object then null;
+end;
+$$;
+
 create index if not exists merchants_active_slug_idx
   on public.merchants (slug)
   where is_active = true;

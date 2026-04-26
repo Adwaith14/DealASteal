@@ -54,7 +54,10 @@ export function computeDealScore({
 
   // --- price-history component (max 20) ------------------------------------
   let historyScore = 10;
+  const priceOk =
+    typeof deal.discount_price === 'number' && Number.isFinite(deal.discount_price) && deal.discount_price > 0;
   if (
+    priceOk &&
     typeof lowestRecentPrice === 'number' &&
     Number.isFinite(lowestRecentPrice) &&
     lowestRecentPrice > 0
@@ -88,8 +91,12 @@ export function computeDealScore({
   let recencyScore = 0;
   const created = Date.parse(deal.created_at);
   if (Number.isFinite(created)) {
-    const ageHours = (now.getTime() - created) / 36e5;
-    recencyScore = clamp(10 * Math.pow(0.5, ageHours / RECENCY_HALF_LIFE_HOURS), 0, 10);
+    if (created > now.getTime()) {
+      recencyScore = 0;
+    } else {
+      const ageHours = (now.getTime() - created) / 36e5;
+      recencyScore = clamp(10 * Math.pow(0.5, ageHours / RECENCY_HALF_LIFE_HOURS), 0, 10);
+    }
   }
 
   // --- urgency / loot bonus (max 5) ----------------------------------------

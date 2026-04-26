@@ -144,7 +144,7 @@ export function DealCard({ deal, priority = false, dealPageUrl, couponCode }: De
           </div>
         ) : null}
         <a
-          href={deal.affiliate_url}
+          href={`/api/click/${deal.id}`}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex min-h-9 w-full items-center justify-center rounded-md bg-orange-500 px-3 py-1.5 text-center text-[12px] font-bold text-white shadow-sm outline-none transition hover:bg-orange-600 focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 active:bg-orange-700"

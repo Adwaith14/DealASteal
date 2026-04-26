@@ -1,5 +1,6 @@
 'use client';
 
+import type { DealListBasePath } from '@/utils/deal-feed-query';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   useCallback,
@@ -11,6 +12,8 @@ import {
 
 type DealSearchFieldProps = {
   initialQuery: string;
+  /** Where debounced text searches navigate (Phase 17 ``/search``). */
+  resultsBasePath?: DealListBasePath;
   /** Optional class for the outer wrapper (navbar vs mobile strip). */
   className?: string;
   /**
@@ -20,10 +23,11 @@ type DealSearchFieldProps = {
 };
 
 /**
- * Debounced title search synced to ``?q=`` on the home route (server-driven results).
+ * Debounced search synced to URL query params (server-driven browse / FTS).
  */
 export function DealSearchField({
   initialQuery,
+  resultsBasePath = '/search',
   className,
   variant = 'default',
 }: DealSearchFieldProps) {
@@ -50,10 +54,18 @@ export function DealSearchField({
       params.delete('page');
       const qs = params.toString();
       startTransition(() => {
-        router.push(qs ? `${pathname}?${qs}` : pathname || '/');
+        if (trimmed) {
+          router.push(qs ? `${resultsBasePath}?${qs}` : resultsBasePath);
+          return;
+        }
+        if (qs) {
+          router.push(`${pathname || '/'}?${qs}`);
+        } else {
+          router.push(pathname === '/search' ? '/' : pathname || '/');
+        }
       });
     },
-    [pathname, router, searchParams]
+    [pathname, resultsBasePath, router, searchParams]
   );
 
   useEffect(() => {
@@ -70,7 +82,7 @@ export function DealSearchField({
   return (
     <div className={className}>
       <label className="relative block w-full">
-        <span className="sr-only">Search deals by title</span>
+        <span className="sr-only">Search deals</span>
         <input
           type="search"
           name="q"

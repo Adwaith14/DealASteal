@@ -1,0 +1,25 @@
+{
+  "SearchResult": {
+    "Items": [
+      {
+        "ASIN": "B0TESTITEM1",
+        "DetailPageURL": "https://www.amazon.com/dp/B0TESTITEM1",
+        "ItemInfo": {
+          "Title": { "DisplayValue": "Fixture Widget" },
+          "ByLineInfo": { "Brand": { "DisplayValue": "FixtureCo" } }
+        },
+        "Offers": {
+          "Listings": [
+            {
+              "Price": { "Amount": 79.99, "Currency": "usd" },
+              "SavingBasis": { "Amount": 99.99 }
+            }
+          ]
+        },
+        "Images": {
+          "Primary": { "Large": { "URL": "https://m.media-amazon.com/images/I/01fixture.jpg" } }
+        }
+      }
+    ]
+  }
+}

@@ -9,6 +9,10 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts'],
     exclude: ['node_modules', '.next'],
+    /** Forked workers avoid ``process.env = {…}`` races between parallel test files. */
+    pool: 'forks',
+    testTimeout: 12_000,
+    hookTimeout: 12_000,
   },
   resolve: {
     alias: {

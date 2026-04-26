@@ -20,6 +20,8 @@
  *
  * Manual wipe only (no seed): `supabase/manual-wipe-deals.sql`
  *
+ * To drop only DummyJSON rows and keep a live feed: `npm run catalog:purge-dummyjson -- --yes-i-know`
+ *
  * Usage:
  *   npx tsx --tsconfig tsconfig.json scripts/reset-and-seed-demo-deals.ts --yes-i-know
  */

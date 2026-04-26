@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { DealIngestSchema } from './schemas';
+import {
+  AdminDealPatchSchema,
+  AdminNetworkSettingsPatchSchema,
+  CouponIngestSchema,
+  CouponIngestUpdateSchema,
+  DealIngestSchema,
+} from './schemas';
 
 describe('DealIngestSchema', () => {
   it('accepts a valid payload', () => {
@@ -163,5 +169,64 @@ describe('DealIngestSchema', () => {
       expires_at: 'not-a-date',
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe('CouponIngestSchema', () => {
+  it('accepts a valid payload', () => {
+    const result = CouponIngestSchema.safeParse({
+      merchant_id: '550e8400-e29b-41d4-a716-446655440000',
+      deal_id: '660e8400-e29b-41d4-a716-446655440001',
+      code: 'SAVE10',
+      title: 'Save 10%',
+      discount_type: 'percent',
+      discount_value: 10,
+      affiliate_url: 'https://example.com/coupon',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects unknown keys when strict', () => {
+    const result = CouponIngestSchema.safeParse({
+      merchant_id: '550e8400-e29b-41d4-a716-446655440000',
+      code: 'SAVE10',
+      title: 'Save 10%',
+      discount_type: 'percent',
+      discount_value: 10,
+      affiliate_url: 'https://example.com/coupon',
+      rogue: true,
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('CouponIngestUpdateSchema', () => {
+  it('requires at least one field besides id', () => {
+    const result = CouponIngestUpdateSchema.safeParse({
+      id: '660e8400-e29b-41d4-a716-446655440001',
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('AdminNetworkSettingsPatchSchema', () => {
+  it('requires a patch field besides network_slug', () => {
+    expect(AdminNetworkSettingsPatchSchema.safeParse({ network_slug: 'ebay' }).success).toBe(false);
+  });
+
+  it('accepts ingest_enabled', () => {
+    expect(
+      AdminNetworkSettingsPatchSchema.safeParse({ network_slug: 'walmart', ingest_enabled: false }).success
+    ).toBe(true);
+  });
+});
+
+describe('AdminDealPatchSchema', () => {
+  it('rejects empty object', () => {
+    expect(AdminDealPatchSchema.safeParse({}).success).toBe(false);
+  });
+
+  it('accepts pin toggle', () => {
+    expect(AdminDealPatchSchema.safeParse({ pinned: true }).success).toBe(true);
   });
 });

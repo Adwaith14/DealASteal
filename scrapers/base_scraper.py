@@ -17,6 +17,12 @@ import requests
 from dotenv import load_dotenv
 
 
+class DealTrustBundlePayload(TypedDict, total=False):
+    affiliate_network: str
+    link_verified_at: str
+    pipeline: str
+
+
 class DealIngestPayload(TypedDict):
     """Keys and value types aligned with DealIngestSchema in src/types/schemas.ts."""
 
@@ -31,6 +37,7 @@ class DealIngestPayload(TypedDict):
     expires_at: NotRequired[str]
     category_slug: NotRequired[str]
     ingest_external_id: NotRequired[str]
+    trust_bundle: NotRequired[DealTrustBundlePayload]
     currency: NotRequired[str]
     asin: NotRequired[str]
     gtin: NotRequired[str]
@@ -118,4 +125,4 @@ class BaseDealScraper:
             print(response.text, file=sys.stderr)
 
 
-__all__ = ["BaseDealScraper", "DealIngestPayload"]
+__all__ = ["BaseDealScraper", "DealIngestPayload", "DealTrustBundlePayload"]

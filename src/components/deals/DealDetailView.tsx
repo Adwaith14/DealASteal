@@ -2,10 +2,12 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { formatCategoryLabel } from '@/components/deals/DealCategoryFilter';
 import { DealImagePlaceholderIcon } from '@/components/deals/deal-image-placeholder';
+import { CouponCopyGoButton } from '@/components/deals/CouponCopyGoButton';
+import { PriceDropAlertForm } from '@/components/deals/PriceDropAlertForm';
 import { DealShareRow } from '@/components/deals/DealShareRow';
 import { SaveDealButton } from '@/components/deals/SaveDealButton';
 import { isDealCategorySlug } from '@/constants/deal-categories';
-import type { Deal } from '@/types/database.types';
+import type { Coupon, Deal } from '@/types/database.types';
 import { storeLabelFromAffiliateUrl } from '@/utils/affiliate-display';
 import { getDealUrgencyForDisplay } from '@/utils/deal-pdp-urgency';
 import { buildHomeDealListHref } from '@/utils/deal-feed-query';
@@ -61,12 +63,18 @@ function barColor(bar: 'red' | 'orange' | 'green'): string {
 
 type DealDetailViewProps = {
   deal: Deal;
+  coupons: Coupon[];
   dealPageUrl: string;
   /** Whether the signed-in user has saved this deal (SSR when session exists). */
   initialSaved?: boolean;
+  /** Price-drop email alert (Phase 20). */
+  priceDropAlert?: {
+    signedIn: boolean;
+    initial: { id: string; thresholdPrice: number } | null;
+  };
 };
 
-export function DealDetailView({ deal, dealPageUrl, initialSaved }: DealDetailViewProps) {
+export function DealDetailView({ deal, coupons, dealPageUrl, initialSaved, priceDropAlert }: DealDetailViewProps) {
   const discountPct = Math.round(deal.discount_percentage);
   const discountLabel = `${discountPct}% OFF`;
   const imageUrl = deal.image_url?.trim() ?? '';
@@ -256,7 +264,7 @@ export function DealDetailView({ deal, dealPageUrl, initialSaved }: DealDetailVi
             <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
               <SaveDealButton dealId={deal.id} initialSaved={initialSaved} variant="wide" />
               <a
-                href={deal.affiliate_url}
+                href={`/api/click/${deal.id}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex min-h-12 w-full flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-orange-500 to-red-600 px-6 text-center text-base font-bold text-white shadow-md transition hover:from-orange-600 hover:to-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
@@ -265,6 +273,15 @@ export function DealDetailView({ deal, dealPageUrl, initialSaved }: DealDetailVi
                 <ExternalIcon className="size-5" />
               </a>
             </div>
+
+            {priceDropAlert ? (
+              <PriceDropAlertForm
+                dealId={deal.id}
+                currentPrice={deal.discount_price}
+                signedIn={priceDropAlert.signedIn}
+                initialAlert={priceDropAlert.initial}
+              />
+            ) : null}
 
             <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-4 text-center text-sm text-gray-600">
               <div>
@@ -283,7 +300,7 @@ export function DealDetailView({ deal, dealPageUrl, initialSaved }: DealDetailVi
       <p className="mx-auto mt-8 max-w-3xl text-center text-xs leading-relaxed text-gray-500">
         As an Amazon Associate, we earn from qualifying purchases. Prices and availability are subject to
         change.{' '}
-        <Link href="/#affiliate" className="text-red-600 underline hover:text-red-700">
+        <Link href="/affiliate-disclosure" className="text-red-600 underline hover:text-red-700">
           Affiliate disclosure
         </Link>
       </p>
@@ -325,6 +342,28 @@ export function DealDetailView({ deal, dealPageUrl, initialSaved }: DealDetailVi
           ))}
         </ol>
       </section>
+
+      {coupons.length > 0 ? (
+        <section className="mx-auto mt-8 max-w-3xl rounded-xl border border-gray-900 bg-white px-5 py-6 shadow-sm sm:px-8">
+          <h2 className="text-base font-extrabold text-gray-900">Applicable coupons</h2>
+          <div className="mt-4 space-y-3">
+            {coupons.map((c) => (
+              <div
+                key={c.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-3"
+              >
+                <div>
+                  <p className="text-sm font-bold text-gray-900">{c.title}</p>
+                  <p className="text-xs text-gray-600">
+                    Code: <span className="font-black tracking-wide text-gray-900">{c.code}</span>
+                  </p>
+                </div>
+                <CouponCopyGoButton couponId={c.id} dealId={deal.id} code={c.code} />
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="mx-auto mt-10 max-w-3xl">
         <h2 className="mb-4 flex items-center gap-2 text-lg font-extrabold text-gray-900">

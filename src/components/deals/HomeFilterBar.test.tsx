@@ -109,4 +109,19 @@ describe('HomeFilterBar', () => {
 
     expect(push).toHaveBeenCalledWith('/?sort=price_asc');
   });
+
+  it('uses listBasePath for facet URLs', () => {
+    render(
+      <HomeFilterBar
+        listBasePath="/search"
+        searchQuery="usb"
+        activeCategorySlug={null}
+        {...defaultFacets}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText('Category'), { target: { value: 'tech' } });
+
+    expect(push).toHaveBeenCalledWith('/search?q=usb&category=tech');
+  });
 });

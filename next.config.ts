@@ -1,4 +1,7 @@
+import { withSentryConfig } from '@sentry/nextjs';
 import type { NextConfig } from 'next';
+import withSerwistInit from '@serwist/next';
+import { buildSerwistPrecacheEntries } from './build-serwist-precache-entries';
 
 type RemotePattern = NonNullable<
   NonNullable<NextConfig['images']>['remotePatterns']
@@ -87,8 +90,8 @@ const CONTENT_SECURITY_POLICY = [
   process.env.NODE_ENV === 'production'
     ? "script-src 'self' 'unsafe-inline'"
     : "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-  // Supabase REST + Realtime + Resend egress.
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.resend.com",
+  // Supabase REST + Realtime + Resend egress + Web Push subscription endpoints.
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.resend.com https://web.push.apple.com https://updates.push.services.mozilla.com https://fcm.googleapis.com https://fcmregistrations.googleapis.com https://android.googleapis.com",
   "object-src 'none'",
   "media-src 'self'",
   "manifest-src 'self'",
@@ -109,10 +112,46 @@ const SECURITY_HEADERS: { key: string; value: string }[] = [
   { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
 ];
 
+const serwistRevision =
+  process.env.VERCEL_GIT_COMMIT_SHA?.trim().slice(0, 40) ||
+  process.env.npm_package_version ||
+  'local';
+
+const withSerwist = withSerwistInit({
+  swSrc: 'src/app/sw.ts',
+  swDest: 'public/sw.js',
+  disable: process.env.NODE_ENV === 'development',
+  cacheOnNavigation: true,
+  additionalPrecacheEntries: buildSerwistPrecacheEntries({
+    projectRoot: process.cwd(),
+    basePath: '/',
+    offlineRevision: serwistRevision,
+  }),
+  maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+});
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   productionBrowserSourceMaps: false,
+  /**
+   * Webpack 5 logs ``[PackFileCacheStrategy] Serializing big strings`` when the
+   * filesystem cache packs large strings (Serwist precache manifest, Sentry, big
+   * chunk graphs). It is a performance hint for webpack itself, not a broken build.
+   * Raising infra log level keeps CI/local output readable without disabling caching.
+   */
+  webpack: (config) => {
+    config.infrastructureLogging = {
+      ...(config.infrastructureLogging ?? {}),
+      level: 'error',
+    };
+    return config;
+  },
+  /**
+   * Prevent artifact races between long-lived `next dev` and one-off
+   * `next build`/other commands by isolating development output.
+   */
+  distDir: process.env.NODE_ENV === 'development' ? '.next-dev' : '.next',
   images: {
     remotePatterns: buildImageRemotePatterns(),
     formats: ['image/avif', 'image/webp'],
@@ -129,4 +168,8 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(withSerwist(nextConfig), {
+  silent: true,
+  hideSourceMaps: true,
+  widenClientFileUpload: true,
+});

@@ -1,0 +1,15 @@
+{
+  "itemSummaries": [
+    {
+      "itemId": "v1|987654321|0",
+      "title": "Fixture eBay headphones",
+      "price": { "value": "29.99", "currency": "USD" },
+      "marketingPrice": {
+        "originalPrice": { "value": "59.99", "currency": "USD" }
+      },
+      "itemAffiliateWebUrl": "https://www.ebay.com/itm/fixture-headphones",
+      "image": { "imageUrl": "https://i.ebayimg.com/images/g/fixture/s-l500.jpg" },
+      "condition": "NEW"
+    }
+  ]
+}

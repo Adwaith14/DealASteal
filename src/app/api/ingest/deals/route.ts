@@ -3,8 +3,11 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { stripV2DealInsertColumns } from '@/lib/catalog/deals-db-schema';
 import { buildDealInsertRow, type DealInsertRow } from '@/lib/ingest/build-deal-insert';
 import { isValidIngestionAuth } from '@/lib/ingest/verify-ingestion-auth';
+import { withIngestRootSpan } from '@/lib/observability/ingest-tracing';
 import { logger } from '@/lib/observability/logger';
-import { callerIdentity, createInMemoryRateLimiter } from '@/lib/security/rate-limit';
+import { captureServerEvent } from '@/lib/observability/posthog-server';
+import { measureSlo } from '@/lib/observability/slo-emit';
+import { callerIdentity, createRateLimiterFromEnv } from '@/lib/security/rate-limit';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import type { Deal } from '@/types/database.types';
 import { DealIngestSchema } from '@/types/schemas';
@@ -21,7 +24,7 @@ const MAX_BODY_BYTES = 64 * 1024;
  * scale-out. We always check auth FIRST so unauthenticated callers can't even
  * burn a bucket slot — they hit the 401 path instead.
  */
-const ingestLimiter = createInMemoryRateLimiter({ capacity: 60, windowMs: 60_000 });
+const ingestLimiter = createRateLimiterFromEnv({ id: 'ingest-deals', capacity: 60, windowMs: 60_000 });
 
 const log = logger.child('api/ingest/deals');
 
@@ -50,14 +53,14 @@ async function readJsonWithCap(request: NextRequest): Promise<
   }
 }
 
-export async function POST(request: NextRequest) {
+async function handleIngestPost(request: NextRequest): Promise<NextResponse> {
   try {
     if (!isValidIngestionAuth(request, process.env.INGESTION_API_KEY)) {
       log.warn('ingest auth denied', { caller: callerIdentity(request.headers) });
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const verdict = ingestLimiter.consume(callerIdentity(request.headers));
+    const verdict = await ingestLimiter.consume(callerIdentity(request.headers));
     if (!verdict.ok) {
       log.warn('ingest rate limited', { resetAt: verdict.resetAt });
       return NextResponse.json(
@@ -116,6 +119,11 @@ export async function POST(request: NextRequest) {
 
     const deal = data as Deal | null;
     if (deal?.id) {
+      captureServerEvent('ingest_deal_success', {
+        distinctId: 'ingest',
+        deal_id: deal.id,
+        upsert: useUpsert,
+      });
       try {
         revalidatePath('/');
         revalidatePath(`/deals/${deal.id}`);
@@ -155,4 +163,10 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json(responseBody, { status: 500 });
   }
+}
+
+export async function POST(request: NextRequest) {
+  return measureSlo('ingest.deals', () =>
+    withIngestRootSpan('ingest.deals.post', () => handleIngestPost(request))
+  );
 }

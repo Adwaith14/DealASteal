@@ -73,3 +73,85 @@ export const DealIngestSchema = z
   });
 
 export type DealIngestPayload = z.infer<typeof DealIngestSchema>;
+
+const couponDiscountTypeEnum = z.enum(['percent', 'fixed']);
+
+export const CouponIngestSchema = z
+  .object({
+    id: z.string().uuid().optional(),
+    merchant_id: z.string().uuid(),
+    deal_id: z.string().uuid().optional(),
+    code: z.string().min(1).max(80),
+    title: z.string().min(1).max(220),
+    description: z.string().min(1).max(2000).optional(),
+    discount_type: couponDiscountTypeEnum,
+    discount_value: z.number().finite().nonnegative(),
+    affiliate_url: z.string().url(),
+    expires_at: isoDateTimeString.optional(),
+    is_active: z.boolean().optional(),
+  })
+  .strict();
+
+export const CouponIngestUpdateSchema = z
+  .object({
+    id: z.string().uuid(),
+    deal_id: z.string().uuid().nullable().optional(),
+    code: z.string().min(1).max(80).optional(),
+    title: z.string().min(1).max(220).optional(),
+    description: z.string().min(1).max(2000).nullable().optional(),
+    discount_type: couponDiscountTypeEnum.optional(),
+    discount_value: z.number().finite().nonnegative().optional(),
+    affiliate_url: z.string().url().optional(),
+    expires_at: isoDateTimeString.nullable().optional(),
+    is_active: z.boolean().optional(),
+  })
+  .strict()
+  .refine((v) => Object.keys(v).some((k) => k !== 'id'), {
+    message: 'at least one updatable field is required',
+    path: ['id'],
+  });
+
+export const CouponIngestDeleteSchema = z
+  .object({
+    id: z.string().uuid(),
+  })
+  .strict();
+
+/** Phase 23 — ``PATCH /api/admin/deals/[id]`` (RLS-gated updates). */
+export const AdminDealPatchSchema = z
+  .object({
+    category_slug: dealCategorySlugEnum.nullable().optional(),
+    admin_hidden: z.boolean().optional(),
+    /** ``true`` = pin (sets ``admin_pinned_at``); ``false`` = unpin. */
+    pinned: z.boolean().optional(),
+  })
+  .strict()
+  .refine((v) => Object.keys(v).length > 0, { message: 'at least one field is required' });
+
+/** Phase 23 — workers report ingest health (``POST /api/ingest/network-status``). */
+export const IngestNetworkStatusSchema = z
+  .object({
+    network: z.string().min(1).max(64),
+    ok: z.boolean(),
+    error: z.string().max(4000).nullable().optional(),
+    rows: z.number().int().nonnegative().nullable().optional(),
+    started_at: isoDateTimeString.optional(),
+    finished_at: isoDateTimeString.optional(),
+  })
+  .strict();
+
+const ingestNetworkSlugEnum = z.enum(['amazon', 'walmart', 'ebay', 'bestbuy', 'target']);
+
+/** Phase 24 — ``PATCH /api/admin/network-settings``. */
+export const AdminNetworkSettingsPatchSchema = z
+  .object({
+    network_slug: ingestNetworkSlugEnum,
+    ingest_enabled: z.boolean().optional(),
+    tos_url: z.string().url().max(2000).nullable().optional(),
+    disclosure_note: z.string().max(4000).nullable().optional(),
+    attribution_note: z.string().max(4000).nullable().optional(),
+  })
+  .strict()
+  .refine((v) => Object.keys(v).some((k) => k !== 'network_slug'), {
+    message: 'at least one field besides network_slug is required',
+  });

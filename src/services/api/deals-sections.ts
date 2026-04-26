@@ -1,5 +1,5 @@
 import 'server-only';
-import { dealSelectColumnsForPostgrest } from '@/lib/catalog/deals-db-schema';
+import { dealSelectColumnsForPostgrest, dealsDbHasAdminSchema } from '@/lib/catalog/deals-db-schema';
 import { DEALS_UNAVAILABLE_WITHOUT_PUBLIC_SUPABASE } from '@/lib/supabase/deals-db-unavailable-message';
 import { getSupabaseServerAnon } from '@/lib/supabase/server';
 import type { Deal, CouponDiscountType } from '@/types/database.types';
@@ -22,6 +22,11 @@ export interface SectionResult {
 export type ExpiringSectionResult = { deals: Deal[]; fetchError?: string };
 export type CouponSectionResult = { deals: DealWithCoupon[]; fetchError?: string };
 
+export type BestDealOfDayResult = {
+  deal: Deal | null;
+  fetchError?: string;
+};
+
 /** Deals expiring within the next 7 days, ordered by soonest expiry first. */
 export async function getExpiringDeals(limit = 20): Promise<ExpiringSectionResult> {
   try {
@@ -31,15 +36,17 @@ export async function getExpiringDeals(limit = 20): Promise<ExpiringSectionResul
     }
     const now = new Date().toISOString();
     const weekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    const { data, error } = await supabase
+    let expQ = supabase
       .from('deals')
       .select(dealSelectColumnsForPostgrest())
       .eq('is_active', true)
       .not('expires_at', 'is', null)
       .gt('expires_at', now)
-      .lt('expires_at', weekFromNow)
-      .order('expires_at', { ascending: true })
-      .limit(limit);
+      .lt('expires_at', weekFromNow);
+    if (dealsDbHasAdminSchema()) {
+      expQ = expQ.order('admin_pinned_at', { ascending: false, nullsFirst: false });
+    }
+    const { data, error } = await expQ.order('expires_at', { ascending: true }).limit(limit);
     if (error) {
       logPostgrestError('getExpiringDeals', error);
       return {
@@ -47,7 +54,7 @@ export async function getExpiringDeals(limit = 20): Promise<ExpiringSectionResul
         fetchError: mapDealsPostgrestError('Could not load expiring deals', error),
       };
     }
-    return { deals: (data ?? []) as Deal[] };
+    return { deals: (data ?? []) as unknown as Deal[] };
   } catch {
     return { deals: [] };
   }
@@ -82,11 +89,11 @@ export async function getCouponDeals(limit = 16): Promise<CouponSectionResult> {
     return {
       deals: data
         .filter((row) => {
-          const d = (row as Record<string, unknown>).deal as Record<string, unknown> | null;
+          const d = (row as unknown as Record<string, unknown>).deal as Record<string, unknown> | null;
           return d && d.is_active === true;
         })
         .map((row) => {
-          const r = row as Record<string, unknown>;
+          const r = row as unknown as Record<string, unknown>;
           const deal = r.deal as Deal;
           return {
             ...deal,
@@ -131,16 +138,17 @@ export async function getTopDeals(
         fetchError: mapDealsPostgrestError('Could not load top deals', error),
       };
     }
-    const topDeals = (data ?? []) as Deal[];
+    const topDeals = (data ?? []) as unknown as Deal[];
     if (topDeals.length > 0 || (count ?? 0) > 0) {
       return { deals: topDeals, total: count ?? 0 };
     }
 
     // Fallback: keep section populated even when no deal passes the strict threshold.
-    const fallback = await supabase
-      .from('deals')
-      .select(dealSelectColumnsForPostgrest(), { count: 'exact' })
-      .eq('is_active', true)
+    let fbQ = supabase.from('deals').select(dealSelectColumnsForPostgrest(), { count: 'exact' }).eq('is_active', true);
+    if (dealsDbHasAdminSchema()) {
+      fbQ = fbQ.order('admin_pinned_at', { ascending: false, nullsFirst: false });
+    }
+    const fallback = await fbQ
       .order('discount_percentage', { ascending: false })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
@@ -152,7 +160,7 @@ export async function getTopDeals(
         fetchError: mapDealsPostgrestError('Could not load top deals', fallback.error),
       };
     }
-    return { deals: (fallback.data ?? []) as Deal[], total: fallback.count ?? 0 };
+    return { deals: (fallback.data ?? []) as unknown as Deal[], total: fallback.count ?? 0 };
   } catch {
     return { deals: [], total: 0 };
   }
@@ -172,13 +180,15 @@ export async function getHotDeals(
         fetchError: DEALS_UNAVAILABLE_WITHOUT_PUBLIC_SUPABASE,
       };
     }
-    const { data, count, error } = await supabase
+    let hotQ = supabase
       .from('deals')
       .select(dealSelectColumnsForPostgrest(), { count: 'exact' })
       .eq('is_active', true)
-      .eq('is_loot_deal', true)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+      .eq('is_loot_deal', true);
+    if (dealsDbHasAdminSchema()) {
+      hotQ = hotQ.order('admin_pinned_at', { ascending: false, nullsFirst: false });
+    }
+    const { data, count, error } = await hotQ.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
     if (error) {
       logPostgrestError('getHotDeals (loot)', error);
       return {
@@ -187,18 +197,17 @@ export async function getHotDeals(
         fetchError: mapDealsPostgrestError('Could not load hot deals', error),
       };
     }
-    const hotDeals = (data ?? []) as Deal[];
+    const hotDeals = (data ?? []) as unknown as Deal[];
     if (hotDeals.length > 0 || (count ?? 0) > 0) {
       return { deals: hotDeals, total: count ?? 0 };
     }
 
     // Fallback: keep Hot section alive with recent active deals.
-    const fallback = await supabase
-      .from('deals')
-      .select(dealSelectColumnsForPostgrest(), { count: 'exact' })
-      .eq('is_active', true)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+    let hotFb = supabase.from('deals').select(dealSelectColumnsForPostgrest(), { count: 'exact' }).eq('is_active', true);
+    if (dealsDbHasAdminSchema()) {
+      hotFb = hotFb.order('admin_pinned_at', { ascending: false, nullsFirst: false });
+    }
+    const fallback = await hotFb.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
     if (fallback.error) {
       logPostgrestError('getHotDeals (fallback)', fallback.error);
       return {
@@ -207,9 +216,61 @@ export async function getHotDeals(
         fetchError: mapDealsPostgrestError('Could not load hot deals', fallback.error),
       };
     }
-    return { deals: (fallback.data ?? []) as Deal[], total: fallback.count ?? 0 };
+    return { deals: (fallback.data ?? []) as unknown as Deal[], total: fallback.count ?? 0 };
   } catch {
     return { deals: [], total: 0 };
+  }
+}
+
+/**
+ * Top scored row from ``best_deals_today`` (materialised view), hydrated with a full ``deals`` row.
+ * Requires migration ``20260427153000_deal_scoring_job.sql`` + periodic ``refresh_deal_scores``.
+ */
+export async function getBestDealOfDay(): Promise<BestDealOfDayResult> {
+  try {
+    const supabase = getSupabaseServerAnon();
+    if (!supabase) {
+      return { deal: null, fetchError: DEALS_UNAVAILABLE_WITHOUT_PUBLIC_SUPABASE };
+    }
+
+    const { data: head, error: mvError } = await supabase
+      .from('best_deals_today')
+      .select('id')
+      .order('score', { ascending: false, nullsFirst: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (mvError) {
+      logPostgrestError('getBestDealOfDay (best_deals_today)', mvError);
+      return {
+        deal: null,
+        fetchError: mapDealsPostgrestError('Could not load best deal', mvError),
+      };
+    }
+
+    const id = head && typeof head === 'object' && 'id' in head ? (head as { id: string }).id : null;
+    if (!id) {
+      return { deal: null };
+    }
+
+    const { data: deal, error: dealError } = await supabase
+      .from('deals')
+      .select(dealSelectColumnsForPostgrest())
+      .eq('id', id)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (dealError) {
+      logPostgrestError('getBestDealOfDay (deals)', dealError);
+      return {
+        deal: null,
+        fetchError: mapDealsPostgrestError('Could not load best deal', dealError),
+      };
+    }
+
+    return { deal: (deal ?? null) as Deal | null };
+  } catch {
+    return { deal: null };
   }
 }
 
@@ -229,12 +290,11 @@ export async function getLatestDeals(
         fetchError: DEALS_UNAVAILABLE_WITHOUT_PUBLIC_SUPABASE,
       };
     }
-    const { data, count, error } = await supabase
-      .from('deals')
-      .select(dealSelectColumnsForPostgrest(), { count: 'exact' })
-      .eq('is_active', true)
-      .order('created_at', { ascending: false })
-      .range(from, to);
+    let latQ = supabase.from('deals').select(dealSelectColumnsForPostgrest(), { count: 'exact' }).eq('is_active', true);
+    if (dealsDbHasAdminSchema()) {
+      latQ = latQ.order('admin_pinned_at', { ascending: false, nullsFirst: false });
+    }
+    const { data, count, error } = await latQ.order('created_at', { ascending: false }).range(from, to);
     if (error) {
       logPostgrestError('getLatestDeals', error);
       return {
@@ -243,7 +303,7 @@ export async function getLatestDeals(
         fetchError: mapDealsPostgrestError('Could not load latest deals', error),
       };
     }
-    return { deals: (data ?? []) as Deal[], total: count ?? 0 };
+    return { deals: (data ?? []) as unknown as Deal[], total: count ?? 0 };
   } catch {
     return { deals: [], total: 0 };
   }

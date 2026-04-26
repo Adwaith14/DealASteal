@@ -46,7 +46,7 @@ Three runtime planes:
 | `src/lib/**` | Cross-cutting utilities | only its own siblings + `src/types` |
 | `src/types/**` | Pure types & Zod schemas | nothing runtime-heavy |
 | `supabase/migrations/**` | Schema-of-record | n/a (SQL) |
-| `scrapers/**` | Python ingest workers | independent process; talks to the site only via the ingest HTTP API |
+| `scrapers/**` | Python ingest workers | independent process; talks to the site only via the ingest HTTP API; PA-API SigV4 + Walmart RSA signing live under `scrapers/networks/` (see `npm run test:scrapers`) |
 
 Reinforcement mechanisms:
 
@@ -107,26 +107,134 @@ These are non-negotiable. PRs that violate them get rejected.
 
 ## 4. Data layer
 
-- `merchants`, `deals`, `coupons` form the catalog core.
+- `merchants`, `deals`, `coupons` form the catalog core. `price_alerts`
+  stores per-user max-price targets and drives Resend price-drop email (Phase
+  20).
+- `ingest_network_settings` (Phase 24) stores per-slug **`ingest_enabled`** and
+  compliance text; workers optionally read **`GET /api/ingest/network-config`**.
 - `price_history` records the time series of `(deal_id, observed_at,
   discount_price)`. The deal-score helper consults the rolling minimum
   to decide if "this is the lowest we've seen it".
 - `click_events` records bouncer hits (`/api/click/[id]`) and powers the
   demand-momentum signal in the score. Stored values are hashed
   (IP/user-agent), never raw.
+- `coupon_use_events` records PDP coupon copy-and-go usage (`/api/coupon-use`)
+  with the same hashed IP/user-agent pattern.
 - `deals.score` is a denormalised number in [0, 100] computed by
-  `computeDealScore`. It is recomputed by a scheduled Postgres job /
-  worker; no code path on the read path mutates it.
+  `computeDealScore`. It is written by `public.refresh_deal_scores(interval, interval)`
+  (migration `20260427153000_deal_scoring_job.sql`), scheduled with `pg_cron`
+  when available; no read path mutates it.
 
-The "best deal of the day" is a **product** of score, not a special
-column — the homepage selects the top-scoring active deal in the last 24h.
-This is intentionally swappable; the business rule lives in
-`src/lib/deals/deal-score.ts`, not in SQL.
+The homepage "best deal" reads the top row of the `best_deals_today`
+materialised view (refreshed in the same job), hydrated via
+`getBestDealOfDay()` in `src/services/api/deals-sections.ts`. The scoring
+formula is duplicated in SQL to match `src/lib/deals/deal-score.ts` — change
+both together when tuning weights.
+
+Phase 19 personalisation uses `click_events.user_id` (from `/api/click/[id]`)
+to build category affinity and rank recommendations in
+`src/services/api/recommendations.ts`. The homepage shows a "For you" rail only
+when a signed-in user exists.
+
+Phase 20 price alerts: `public.price_alerts` (one row per user + deal) stores
+`threshold_price` and `is_below_threshold` for edge detection. A scheduled
+`GET /api/cron/price-alerts` (Bearer `CRON_SECRET`, `vercel.json` every 15m)
+compares the latest `price_history.price` (else `deals.discount_price`) to the
+threshold, sends email via Resend with tags for webhooks, and includes an HMAC
+unsubscribe link (`PRICE_ALERT_UNSUBSCRIBE_SECRET`). `POST /api/webhooks/resend`
+(verify with `RESEND_WEBHOOK_SECRET` + Svix) disables alerts on
+`email.bounced` / `email.complained` when a `price_alert_id` tag is present.
+Phase 25 adds optional **Web Push** to the same cron path after a successful send
+(see `push_subscriptions` and `sendPriceAlertWebPushes`).
+
+Phase 21 observability: **Sentry** (`SENTRY_DSN`, optional `VERCEL_ENV`) via
+`sentry.server.config.ts` / `sentry.edge.config.ts`, `withSentryConfig` in
+`next.config.ts`, `src/instrumentation.ts`, and `src/app/global-error.tsx`
+(`beforeSend` strips cookies / sensitive headers / user email). **OpenTelemetry**
+optional OTLP export when `OTEL_EXPORTER_OTLP_ENDPOINT` (or
+`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`) is set — `registerNodeTelemetry()` wires a
+`BasicTracerProvider`; ingest uses tracer scope **`ingest`** (`withIngestRootSpan`
+in `POST /api/ingest/deals` and `npm run ingest:affiliate`). **SLO logs**: JSON
+lines from `logger` scope `app:slo` with `msg: metric`, `ctx.kind=slo`, and
+`op` + `durationMs` + `httpStatus` for `ingest.deals`, `click.bounce`, and
+`catalog.deals.latest` (chart in Vercel / Datadog from raw logs). **PostHog**
+server capture (`posthog-node`) when `POSTHOG_API_KEY` is set — event
+`ingest_deal_success` on successful deal writes (no `@vercel/analytics`).
+
+Phase 22 scale: **Rate limits** use `createRateLimiterFromEnv` in
+`src/lib/security/rate-limit.ts` — when `UPSTASH_REDIS_REST_URL` and
+`UPSTASH_REDIS_REST_TOKEN` are set, ingest + click limits go through Upstash
+(`@upstash/ratelimit` sliding window); otherwise the in-memory limiter is used.
+Redis failures **fail open** so outages do not brick public routes. **CDN:**
+`/api/deals/*` list routes attach `cacheHeaders('shortFeed')` (`s-maxage=30`,
+`stale-while-revalidate=120`); verify hit ratio with Vercel ``x-vercel-cache`` on
+preview/prod (see `tests/load/vercel-cache.hit.test.ts`). **N+1:** carousel
+loaders in `deals-sections.ts` use a single PostgREST select (or two only when a
+strict query returns empty and a fallback query runs — still ≤ 2). **Supabase
+pooling:** use the **pooler** host / port **6543** (transaction mode) for
+serverless / high fan-out writers; direct **5432** is for long-lived sessions.
+
+### Phase 23 — Admin console (shipped)
+
+- **Schema:** `supabase/migrations/20260501100000_phase23_admin_console.sql` adds
+  `profiles.role` (`user` \| `admin`, mutable only by `service_role` via trigger),
+  `deals.admin_hidden`, `deals.admin_pinned_at`, `admin_actions`, `ingest_network_status`.
+  Public deal **SELECT** RLS requires `is_active` and **not** `admin_hidden`; extra
+  `deals_admin_select_all` / `deals_admin_update` policies apply when `is_profile_admin()`.
+- **App:** `/admin` (layout checks `requireAdminSupabase`); middleware sends anonymous
+  users to `/login?next=`. **`DEALS_ADMIN_SCHEMA=1`** gates `dealSelectColumnsForPostgrest()`
+  admin columns and pin-first ordering in `deals.ts` / `deals-sections.ts`.
+- **API:** `PATCH /api/admin/deals/[id]` (session + admin), `GET /api/admin/deals`,
+  `GET /api/admin/ingest-status`; workers **`POST /api/ingest/network-status`** with
+  `INGESTION_API_KEY` (service-role upsert, no user RLS).
+
+### Phase 24 — Multi-network expansion (shipped)
+
+- **Schema:** `ingest_network_settings` (`network_slug`, `ingest_enabled`, `tos_url`,
+  `disclosure_note`, `attribution_note`) — RLS admin select/update; workers read via
+  **`GET /api/ingest/network-config`** (ingestion bearer, service-role read).
+- **Workers:** `ebay_partner.py` (OAuth + Browse API), `bestbuy_impact.py` /
+  `target_impact.py` (JSON catalog URL or local fixture path). All major workers
+  call `networks/ingest_gate.check_ingest_enabled_or_exit` when **`DEALASTEAL_BASE_URL`**
+  is set (opt-out: **`INGEST_SKIP_NETWORK_GATE=1`**).
+- **Admin:** `/admin` includes ingest enable/disable; **`PATCH /api/admin/network-settings`**.
+
+### Phase 25 — PWA / Web Push (shipped)
+
+- **Serwist:** `withSerwistInit` composes **inside** `withSentryConfig` in `next.config.ts`
+  (Sentry remains the outer wrapper). `src/app/sw.ts` precaches `public/**` plus
+  `/~offline` (see `build-serwist-precache-entries.ts`); runtime cache prepends
+  `createLatestDealsListRuntimeCaching()` for **`GET /api/deals/latest`** before
+  `@serwist/next/worker` `defaultCache`. Dev disables the worker (`disable: NODE_ENV === 'development'`);
+  `AppSerwistProvider` mirrors that on the client.
+- **Manifest / UX:** `src/app/manifest.ts`, icons under `public/pwa/`, `viewport.themeColor`
+  + `appleWebApp` in `layout.tsx`. Offline shell: `src/app/~offline/page.tsx`.
+- **Web Push:** `public.push_subscriptions` (user + endpoint + keys, RLS owner-only).
+  **`GET/POST/DELETE /api/me/push-subscribe`** (session, `cacheHeaders('noStore')`).
+  Account page: `PushNotifyOptIn` (production only — dev skips Serwist registration).
+  Cron (`runPriceAlertCron`) calls `sendPriceAlertWebPushes` after a successful price-drop
+  email when `NEXT_PUBLIC_VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` are set. CSP
+  `connect-src` allows common browser push subscription hosts.
+- **CI:** `.github/workflows/lighthouse.yml` + `lighthouserc.json`; repo secrets must
+  supply `NEXT_PUBLIC_SUPABASE_*` for `next build` on GitHub.
+
+### Phase 14 — Compliance (shipped)
+
+- Legal: `/privacy`, `/terms`, `/affiliate-disclosure`, `/dmca` (placeholder copy until counsel review).
+- Consent: `CookieBanner` + `dealasteal_consent_v1` cookie; EEA full interstitial; US strip with CCPA link to `/privacy#ccpa`; default non-essential off until accept.
+- Portability: `GET /api/me/export` (JSON: user, profile, saved_deals, consent); `DELETE /api/me/delete` (Auth Admin `deleteUser`).
+- Outbound: deal CTAs use `/api/click/[id]`; Amazon URLs get `tag=` from env on redirect.
 
 ### `DEALS_DB_V2` (catalog column set)
 
 - Until `supabase/migrations/20260425000000_v2_catalog_evolution.sql` is applied on your Supabase project, leave **`DEALS_DB_V2` unset** (legacy mode): PostgREST selects and ingest payloads omit `currency`, `asin`, `score`, etc., so the homepage never hits `42703`.
 - After the migration succeeds, set **`DEALS_DB_V2=1`** in `.env.local` and restart `next dev` so reads/inserts include the extended columns.
+
+### `DEALS_SEARCH_FTS` (Postgres full-text search)
+
+- After `supabase/migrations/20260428100000_deals_fts_search.sql`, `getActiveDeals` / `searchDeals` call `search_active_deals_fts` for queries with **≥ 2** non-whitespace characters (``websearch_to_tsquery`` + ``ts_rank_cd``), and fall back to title ``ILIKE`` when the RPC is missing or returns an error, or when ``DEALS_SEARCH_FTS=0``.
+- Set **`DEALS_SEARCH_FTS=0`** only if you need to disable FTS without rolling back the migration (e.g. emergency).
+- Canonical browse URL for text search: **`/search?q=`** (home ``/?q=`` remains supported).
 
 ### Migrations
 
@@ -136,6 +244,10 @@ This is intentionally swappable; the business rule lives in
   doesn't break.
 - RLS policies for new tables are part of the same migration — you do
   not get to add a table without specifying who can read/write it.
+- **Do not edit** a migration file after it has been applied remotely (checksum /
+  history drift). **`DROP … IF EXISTS`** on a first apply often prints Postgres
+  `NOTICE: … does not exist, skipping` — that is normal; `db push` still finished
+  successfully.
 
 ---
 

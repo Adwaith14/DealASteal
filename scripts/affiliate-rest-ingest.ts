@@ -11,6 +11,8 @@ import {
 } from '@/lib/vendors/affiliate-rest/merchant-resolution';
 import { isPlaceholderAffiliateRestUrl } from '@/lib/vendors/affiliate-rest/is-placeholder-affiliate-url';
 import { normalizeAffiliateRestOffer } from '@/lib/vendors/affiliate-rest/normalize-offer';
+import { withIngestRootSpan } from '@/lib/observability/ingest-tracing';
+import { registerNodeTelemetry } from '@/lib/observability/register-node-telemetry';
 import type { DealIngestPayload } from '@/types/schemas';
 
 const DEFAULT_OFFLINE_FIXTURE = 'fixtures/affiliate-rest-sample.json';
@@ -127,6 +129,9 @@ async function main() {
 
   const useFixture = fixturePath.length > 0;
 
+  registerNodeTelemetry();
+
+  await withIngestRootSpan('affiliate-rest-ingest', async () => {
   for (let page = 0; page < maxPages; page += 1) {
     const data = useFixture
       ? sliceAffiliateRestPage(loadAffiliateRestFixtureFile(fixturePath), limit)
@@ -175,6 +180,7 @@ async function main() {
     cursor = data.next_cursor;
     if (!cursor) break;
   }
+  });
 
   process.stdout.write(
     dryRun

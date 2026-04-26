@@ -6,6 +6,8 @@ import { SiteHeader } from '@/components/layout/SiteHeader';
 import { createSupabaseServerClient } from '@/lib/supabase/ssr-server';
 import { getSiteOrigin } from '@/utils/site-origin';
 import type { Deal } from '@/types/database.types';
+import { PushNotifyOptIn } from '@/components/account/PushNotifyOptIn';
+import { AccountDataControls } from './AccountDataControls';
 import { DigestPreferenceForm } from './DigestPreferenceForm';
 import { signOutAction } from './actions';
 
@@ -94,7 +96,9 @@ export default async function AccountPage() {
             )}
           </section>
           <aside className="space-y-6">
+            <AccountDataControls />
             <DigestPreferenceForm initialDigestWeekly={digestWeekly} />
+            <PushNotifyOptIn />
             <p className="text-xs text-gray-500">
               <Link href="/" className="font-semibold text-[#D32F2F] underline hover:text-red-800">
                 ← Back to deals

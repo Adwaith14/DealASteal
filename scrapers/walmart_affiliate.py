@@ -1,119 +1,83 @@
 #!/usr/bin/env python3
-"""Walmart Affiliate / Open API ingest template.
+"""Walmart Affiliate / Open API ingest worker.
 
-Walmart's affiliate API requires:
-
-- A Walmart **Impact Radius** publisher account.
-- A Consumer ID (``WM_CONSUMER.ID``) and a **private RSA key** registered
-  in the Walmart developer portal. Each request is signed with
-  RSA-SHA256 over a canonical string and base64-encoded into the
-  ``WM_SEC.AUTH_SIGNATURE`` header.
-
-This template signs nothing — it documents the headers and shows how the
-JSON is mapped onto :class:`DealIngestPayload`. Wire up signing before
-running in production.
+Signs each feed request (``WM_CONSUMER.ID`` + RSA-SHA256 per Walmart Affiliate
+onboarding docs) and maps JSON items to ``DealIngestPayload``.
 """
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
-from typing import Any, Iterable
 
 from base_scraper import BaseDealScraper, DealIngestPayload
+
+from networks.ingest_gate import check_ingest_enabled_or_exit
+from networks.normalize import normalize_walmart_item
+from networks.walmart_client import WalmartAffiliateClient, WalmartHttpError
+from networks.worker_logging import configure_worker_logging
+
+log = logging.getLogger("dealasteal.walmart_affiliate")
 
 
 def _required_env(name: str) -> str:
     value = os.getenv(name, "").strip()
     if not value:
-        print(
-            f"[walmart_affiliate] Missing env var {name!r}. See scrapers/README.md.",
-            file=sys.stderr,
-            flush=True,
+        log.error(
+            "missing env var: %s",
+            name,
+            extra={"component": "walmart_affiliate", "exception_type": "config", "msg_key": name},
         )
+        print(f"[walmart_affiliate] Missing env var {name!r}. See scrapers/README.md.", file=sys.stderr, flush=True)
         sys.exit(1)
     return value
 
 
-def _normalize_walmart_item(item: dict[str, Any], merchant_id: str) -> DealIngestPayload | None:
-    """Walmart Open API trending/items response.
-
-    Real shape (truncated):
-        { "itemId": 12345,
-          "name": "...",
-          "msrp": 199.99,
-          "salePrice": 149.99,
-          "productUrl": "https://www.walmart.com/...",
-          "affiliateAddToCartUrl": "https://goto.walmart.com/c/...",
-          "stock": "Available",
-          "customerRating": "4.5",
-          "numReviews": 320,
-          "brandName": "..." }
-    """
-    item_id = item.get("itemId")
-    name = item.get("name")
-    msrp = item.get("msrp")
-    sale = item.get("salePrice")
-    affiliate_url = item.get("affiliateAddToCartUrl") or item.get("productUrl")
-    if not (item_id and name and msrp and sale and affiliate_url):
-        return None
-    if sale >= msrp:
-        return None
-
-    payload: DealIngestPayload = {
-        "merchant_id": merchant_id,
-        "title": str(name),
-        "original_price": float(msrp),
-        "discount_price": float(sale),
-        "affiliate_url": str(affiliate_url),
-        "is_loot_deal": (msrp - sale) / msrp >= 0.50,
-        "ingest_external_id": f"walmart:{item_id}",
-    }
-    payload["currency"] = "USD"
-    if (image_url := item.get("largeImage") or item.get("mediumImage")):
-        payload["image_url"] = str(image_url)
-    if rating := item.get("customerRating"):
-        try:
-            payload["rating"] = float(rating)
-        except (TypeError, ValueError):
-            pass
-    if num_reviews := item.get("numReviews"):
-        try:
-            payload["rating_count"] = int(num_reviews)
-        except (TypeError, ValueError):
-            pass
-    if brand := item.get("brandName"):
-        payload["brand"] = str(brand)
-    if stock := item.get("stock"):
-        payload["availability"] = str(stock).lower()
-    return payload
-
-
-def _fetch_walmart_items() -> Iterable[dict[str, Any]]:
-    """Stub. Replace with a signed call to:
-
-    - ``GET https://developer.api.walmart.com/api-proxy/service/affil/product/v2/feeds/specialbuys`` (Special Buys)
-    - or ``GET .../v2/feeds/clearance``
-    - or ``GET .../v2/feeds/rollback``
-    """
-    return []
-
-
 def main() -> int:
+    configure_worker_logging()
+    check_ingest_enabled_or_exit("walmart", log=log, component="walmart_affiliate")
     merchant_id = _required_env("WALMART_MERCHANT_ID")
-    _required_env("WALMART_CONSUMER_ID")
-    _required_env("WALMART_PRIVATE_KEY_PATH")
-    _required_env("WALMART_KEY_VERSION")
-    _required_env("INGESTION_API_KEY")
+    consumer_id = _required_env("WALMART_CONSUMER_ID")
+    key_path = _required_env("WALMART_PRIVATE_KEY_PATH")
+    key_version = _required_env("WALMART_KEY_VERSION")
+    _ = _required_env("INGESTION_API_KEY")
 
+    api_base = os.getenv("WALMART_API_BASE", "https://developer.api.walmart.com").strip()
+    feed_path = os.getenv("WALMART_FEED_PATH", WalmartAffiliateClient.FEED_SPECIALBUYS).strip()
+
+    client = WalmartAffiliateClient(
+        consumer_id=consumer_id,
+        key_version=key_version,
+        private_key_path=key_path,
+        api_base=api_base,
+    )
     scraper = BaseDealScraper()
     sent = 0
-    for item in _fetch_walmart_items():
-        payload = _normalize_walmart_item(item, merchant_id)
-        if payload is None:
+    try:
+        items = client.get_feed_items(feed_path=feed_path)
+    except WalmartHttpError as exc:
+        log.error(
+            "feed fetch failed",
+            extra={
+                "component": "walmart_affiliate",
+                "http_status": exc.http_status,
+                "feed": feed_path,
+            },
+        )
+        print(f"[walmart_affiliate] Feed error: {exc}", file=sys.stderr, flush=True)
+        return 1
+
+    log.info("feed ok", extra={"component": "walmart_affiliate", "feed": feed_path, "items": len(items)})
+    for item in items:
+        normalized = normalize_walmart_item(item, merchant_id=merchant_id)
+        if normalized is None:
             continue
-        if scraper.push_to_api(payload):
+        payload: DealIngestPayload = normalized  # type: ignore[assignment]
+        if scraper.push_to_api(dict(payload)):
             sent += 1
+
+    log.info("run complete", extra={"component": "walmart_affiliate", "sent": sent})
     print(f"[walmart_affiliate] Sent {sent} deal(s).", flush=True)
     return 0
 

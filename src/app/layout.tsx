@@ -1,6 +1,8 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import type { ReactNode } from 'react';
+import { CookieBannerWrapper } from '@/components/consent/CookieBannerWrapper';
+import { AppSerwistProvider } from '@/components/pwa/AppSerwistProvider';
 import { getPublicSiteBaseUrl } from '@/lib/site-base-url';
 import './globals.css';
 
@@ -26,7 +28,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.className} min-h-dvh min-w-0 overflow-x-clip`}>{children}</body>
+      <body className={`${inter.className} min-h-dvh min-w-0 overflow-x-clip`}>
+        <AppSerwistProvider>
+          <CookieBannerWrapper />
+          {children}
+        </AppSerwistProvider>
+      </body>
     </html>
   );
 }

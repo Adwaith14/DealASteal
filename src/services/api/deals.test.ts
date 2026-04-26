@@ -14,9 +14,10 @@ const builder = {
 };
 
 const fromMock = vi.fn(() => builder);
+const rpcMock = vi.fn();
 
 vi.mock('@/lib/supabase/server', () => ({
-  getSupabaseServerAnon: () => ({ from: fromMock }),
+  getSupabaseServerAnon: () => ({ from: fromMock, rpc: rpcMock }),
 }));
 
 function wireListChain() {
@@ -57,9 +58,15 @@ function sampleDeal(overrides: Partial<Deal> = {}): Deal {
 
 describe('getActiveDeals', () => {
   beforeEach(() => {
+    vi.stubEnv('DEALS_SEARCH_FTS', '0');
     vi.resetModules();
     vi.clearAllMocks();
     fromMock.mockReset();
+    rpcMock.mockReset();
+    rpcMock.mockResolvedValue({
+      data: null,
+      error: { message: 'rpc disabled in test', code: 'TEST' },
+    } as never);
     builder.select.mockReset();
     builder.eq.mockReset();
     builder.ilike.mockReset();
@@ -73,6 +80,7 @@ describe('getActiveDeals', () => {
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.restoreAllMocks();
   });
 
@@ -329,6 +337,16 @@ describe('getActiveDeals', () => {
     }
   });
 
+  it('orders relevance fallback like newest for PostgREST path', async () => {
+    builder.range.mockResolvedValue({ data: [], error: null, count: 0 });
+    const { getActiveDeals } = await import('./deals');
+    const result = await getActiveDeals({ sort: 'relevance' });
+    expect(builder.order).toHaveBeenCalledWith('created_at', { ascending: false });
+    if (result.ok) {
+      expect(result.appliedSort).toBe('relevance');
+    }
+  });
+
   it('treats bogus sort as newest', async () => {
     builder.range.mockResolvedValue({ data: [], error: null, count: 0 });
     const { getActiveDeals } = await import('./deals');
@@ -340,18 +358,51 @@ describe('getActiveDeals', () => {
       expect(result.appliedSort).toBe('newest');
     }
   });
+
+  it('uses search_active_deals_fts when DEALS_SEARCH_FTS is enabled and query is long enough', async () => {
+    vi.stubEnv('DEALS_SEARCH_FTS', '1');
+    const deal = sampleDeal({ id: '550e8400-e29b-41d4-a716-446655440001' });
+    rpcMock.mockResolvedValueOnce({
+      data: { total: 1, deals: [deal] },
+      error: null,
+    } as never);
+    const { getActiveDeals } = await import('./deals');
+    const result = await getActiveDeals({ query: 'usb', page: 1, pageSize: 24 });
+    expect(rpcMock).toHaveBeenCalled();
+    expect(fromMock).not.toHaveBeenCalled();
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.deals).toEqual([deal]);
+      expect(result.totalCount).toBe(1);
+    }
+  });
+
+  it('skips RPC for a 1-character query even when FTS is enabled', async () => {
+    vi.stubEnv('DEALS_SEARCH_FTS', '1');
+    builder.range.mockResolvedValue({ data: [], error: null, count: 0 });
+    const { getActiveDeals } = await import('./deals');
+    await getActiveDeals({ query: 'a' });
+    expect(rpcMock).not.toHaveBeenCalled();
+    expect(builder.ilike).toHaveBeenCalledWith('title', '%a%');
+  });
 });
 
 describe('getActiveDealById', () => {
   beforeEach(() => {
+    vi.stubEnv('DEALS_SEARCH_FTS', '0');
     vi.resetModules();
     vi.clearAllMocks();
     fromMock.mockReset();
+    rpcMock.mockReset();
     builder.select.mockReset();
     builder.eq.mockReset();
     builder.maybeSingle.mockReset();
     fromMock.mockImplementation(() => builder);
     wireSingleChain();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it('returns invalid_id for bad UUID', async () => {

@@ -1,0 +1,16 @@
+{
+  "items": [
+    {
+      "itemId": 50001234,
+      "name": "Fixture kettle",
+      "msrp": 60.0,
+      "salePrice": 29.99,
+      "productUrl": "https://www.walmart.com/ip/fixture/50001234",
+      "largeImage": "https://i5.walmartimages.com/foo.jpg",
+      "customerRating": "4.2",
+      "numReviews": 88,
+      "brandName": "FixtureBrand",
+      "stock": "Available"
+    }
+  ]
+}
