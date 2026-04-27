@@ -1,0 +1,16 @@
+{
+  "offers": [
+    {
+      "external_id": "sample-001",
+      "merchant_slug": "demo-store",
+      "title": "Demo gadget",
+      "sale_price": 19.99,
+      "list_price": 39.99,
+      "affiliate_url": "https://track.example.com/offer/sample-001",
+      "image_url": "https://dummyjson.com/image/iPhone/300x300/282/A29?type=webp&height=300&width=300",
+      "category": "tech",
+      "description": "Fixture sample for affiliate ingest dry-run."
+    }
+  ],
+  "next_cursor": "optional-for-network-only"
+}
