@@ -1,7 +1,6 @@
-/**
- * Build home feed URLs with stable ordering of query params (pagination + search + facets).
- */
-export function buildHomeDealListHref(parts: {
+import type { CatalogSortMode } from '@/constants/deal-browse-filters';
+
+type DealListHrefParts = {
   page?: number;
   q?: string;
   category?: string;
@@ -10,7 +9,17 @@ export function buildHomeDealListHref(parts: {
   maxPrice?: number;
   /** When true, adds ``loot=1`` (loot / hot-style deals on the home browse view). */
   lootDeals?: boolean;
-}): string {
+  /** List ordering on ``/deals`` (curated row modes). */
+  sort?: CatalogSortMode;
+};
+
+/**
+ * Build list URLs with stable ordering of query params (pagination + search + facets).
+ */
+export function buildDealListHref(
+  pathname: string,
+  parts: DealListHrefParts
+): string {
   const params = new URLSearchParams();
   const page = parts.page;
   if (page != null && page > 1) {
@@ -39,6 +48,16 @@ export function buildHomeDealListHref(parts: {
   if (parts.lootDeals) {
     params.set('loot', '1');
   }
+  if (parts.sort) {
+    params.set('sort', parts.sort);
+  }
   const qs = params.toString();
-  return qs ? `/?${qs}` : '/';
+  return qs ? `${pathname}?${qs}` : pathname;
+}
+
+/**
+ * Build home feed URLs with stable ordering of query params (pagination + search + facets).
+ */
+export function buildHomeDealListHref(parts: DealListHrefParts): string {
+  return buildDealListHref('/', parts);
 }

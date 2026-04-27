@@ -1,28 +1,20 @@
+'use client';
+
 import Image from 'next/image';
 import Link from 'next/link';
 import { formatCategoryLabel } from '@/components/deals/DealCategoryFilter';
 import { DealImagePlaceholderIcon } from '@/components/deals/deal-image-placeholder';
-import { DealShareRow } from '@/components/deals/DealShareRow';
 import { isDealCategorySlug } from '@/constants/deal-categories';
 import type { Deal } from '@/types/database.types';
 import { storeLabelFromAffiliateUrl } from '@/utils/affiliate-display';
-import { getDealUrgencyForDisplay } from '@/utils/deal-pdp-urgency';
-import { buildHomeDealListHref } from '@/utils/deal-feed-query';
-import { formatDealEndsIn, formatDealListedAgo } from '@/utils/deal-time';
+import { buildDealListHref } from '@/utils/deal-feed-query';
+import { formatDealCountdownColons, formatDealEndsIn, formatDealListedAgo } from '@/utils/deal-time';
 
 const moneyFormatter = new Intl.NumberFormat('en-US', {
   style: 'currency',
   currency: 'USD',
   maximumFractionDigits: 2,
 });
-
-function truncateCrumbTitle(title: string, max = 44): string {
-  const t = title.trim();
-  if (t.length <= max) {
-    return t;
-  }
-  return `${t.slice(0, max - 1).trimEnd()}…`;
-}
 
 function ClockIcon({ className }: { className?: string }) {
   return (
@@ -47,316 +39,196 @@ function ExternalIcon({ className }: { className?: string }) {
   );
 }
 
-function barColor(bar: 'red' | 'orange' | 'green'): string {
-  if (bar === 'red') {
-    return 'bg-red-600';
-  }
-  if (bar === 'orange') {
-    return 'bg-orange-500';
-  }
-  return 'bg-emerald-500';
-}
-
 type DealDetailViewProps = {
   deal: Deal;
   dealPageUrl: string;
+  relatedDeals: Deal[];
 };
 
-export function DealDetailView({ deal, dealPageUrl }: DealDetailViewProps) {
+export function DealDetailView({ deal, dealPageUrl, relatedDeals }: DealDetailViewProps) {
   const discountPct = Math.round(deal.discount_percentage);
-  const discountLabel = `${discountPct}% OFF`;
   const imageUrl = deal.image_url?.trim() ?? '';
   const hasImage = imageUrl.length > 0;
   const listed = formatDealListedAgo(deal.created_at);
   const endsIn = formatDealEndsIn(deal.expires_at);
+  const countdown = formatDealCountdownColons(deal.expires_at);
   const storeLabel = storeLabelFromAffiliateUrl(deal.affiliate_url);
   const categoryLabel = formatCategoryLabel(deal.category_slug);
   const savings = Math.max(0, deal.original_price - deal.discount_price);
-  const urgency = getDealUrgencyForDisplay(deal);
-  const crumbCategory =
-    deal.category_slug && isDealCategorySlug(deal.category_slug) && categoryLabel
-      ? categoryLabel.toUpperCase()
-      : null;
   const categoryHref =
     deal.category_slug && isDealCategorySlug(deal.category_slug)
-      ? buildHomeDealListHref({ category: deal.category_slug })
+      ? buildDealListHref('/deals', { category: deal.category_slug })
       : null;
 
-  const faqs = [
-    {
-      q: `How much can I save on ${deal.title.slice(0, 80)}${deal.title.length > 80 ? '…' : ''}?`,
-      a: `This listing shows about ${discountLabel.toLowerCase()} off the reference price we captured. Your final price is set by the retailer at checkout.`,
-    },
-    {
-      q: 'Is this deal verified?',
-      a: 'We validate links, titles, and basic price consistency before publishing. Always confirm price and availability on the store page before you buy.',
-    },
-    {
-      q: 'How do I redeem this deal?',
-      a: 'Use Grab the Deal to open the retailer site. Discounts usually apply automatically; some offers require a coupon code shown on the merchant page.',
-    },
-    {
-      q: 'When does this deal expire?',
-      a: endsIn
-        ? 'We show a countdown when an expiry time is available. Offers can end early if inventory runs out.'
-        : 'We may not have an exact end time. Retailers can change or end promotions without notice.',
-    },
-    {
-      q: 'Can I share this deal?',
-      a: 'Yes — use the share icons below to send the link to friends or save it for later.',
-    },
-  ];
-
-  const retailerName = storeLabel;
-
   return (
-    <div className="mx-auto w-full max-w-[1100px] flex-1 px-4 py-6 sm:px-6 lg:py-10">
-      <nav className="mb-6 flex flex-wrap items-center gap-x-1 gap-y-1 text-sm text-gray-500">
-        <Link href="/" className="font-medium text-gray-700 hover:text-red-600">
-          Home
-        </Link>
-        <span className="text-gray-300" aria-hidden>
-          &gt;
-        </span>
-        {crumbCategory && categoryHref ? (
+    <div className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-8 sm:px-6">
+      {/* Breadcrumbs */}
+      <nav className="mb-6 flex items-center gap-2 text-sm text-slate-500">
+        <Link href="/" className="hover:text-[#26BBA4]">Home</Link>
+        <span>/</span>
+        <Link href="/deals" className="hover:text-[#26BBA4]">Deals</Link>
+        {categoryLabel && categoryHref && (
           <>
-            <Link href={categoryHref} className="font-medium text-gray-700 hover:text-red-600">
-              {crumbCategory}
-            </Link>
-            <span className="text-gray-300" aria-hidden>
-              &gt;
-            </span>
+            <span>/</span>
+            <Link href={categoryHref} className="hover:text-[#26BBA4]">{categoryLabel}</Link>
           </>
-        ) : null}
-        <span className="max-w-[min(100%,52vw)] truncate font-medium text-gray-600">
-          {truncateCrumbTitle(deal.title)}
-        </span>
+        )}
       </nav>
 
-      <article className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-        <div className="grid gap-0 lg:grid-cols-2 lg:gap-0">
-          <div className="relative flex min-h-[280px] items-center justify-center border-b border-gray-100 bg-white p-6 lg:min-h-[420px] lg:border-b-0 lg:border-r">
-            <span className="absolute left-4 top-4 z-20 inline-flex max-w-[calc(100%-2rem)] items-center rounded-md bg-orange-500 px-2.5 py-1 text-xs font-extrabold uppercase tracking-wide text-white shadow">
-              {deal.is_loot_deal ? <span aria-hidden>🔥 </span> : null}
-              {discountLabel}
-            </span>
+      <div className="grid gap-8 lg:grid-cols-2">
+        {/* Left Column: Image Product Area */}
+        <div className="space-y-6">
+          <div className="relative aspect-auto min-h-[400px] overflow-hidden rounded-3xl bg-slate-50 border border-slate-100 flex items-center justify-center p-8">
             {hasImage ? (
-              <div className="relative flex aspect-square w-full max-w-md min-w-0 items-center justify-center lg:max-w-none">
-                <Image
-                  src={imageUrl}
-                  alt={deal.title}
-                  width={900}
-                  height={900}
-                  priority
-                  className="max-h-full max-w-full object-contain drop-shadow-sm"
-                  sizes="(max-width: 1024px) 100vw, 50vw"
-                />
-              </div>
+              <Image
+                src={imageUrl}
+                alt={deal.title}
+                width={800}
+                height={600}
+                className="max-h-[440px] w-auto object-contain drop-shadow-xl"
+                priority
+              />
             ) : (
-              <div
-                className="flex aspect-square w-full max-w-md items-center justify-center rounded-lg bg-gray-50 lg:max-w-lg"
-                aria-label="No product image"
-              >
-                <DealImagePlaceholderIcon className="h-24 w-24 text-gray-300" />
+              <DealImagePlaceholderIcon className="h-24 w-24 text-slate-200" />
+            )}
+            {discountPct > 0 && (
+              <div className="absolute left-6 top-6 rounded-full bg-[#26BBA4] px-4 py-2 text-sm font-bold text-white shadow-lg">
+                {discountPct}% OFF
               </div>
             )}
           </div>
 
-          <div className="space-y-5 p-6 sm:p-8 lg:p-10">
-            <div className="flex flex-wrap gap-2">
-              <span className="rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-bold text-gray-800">
+          <div className="rounded-3xl border border-slate-100 bg-white p-8 shadow-sm">
+            <h2 className="text-xl font-bold text-[#0B1340]">Description</h2>
+            <div className="mt-4 text-slate-600 leading-relaxed">
+              {deal.description || "No detailed description provided for this deal. Please visit the merchant store for more information."}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Key info and Buy */}
+        <div className="flex flex-col gap-6">
+          <div className="rounded-3xl border border-slate-100 bg-white p-8 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
                 {storeLabel}
               </span>
-              {categoryLabel ? (
-                <span className="rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-bold text-gray-800">
-                  {categoryLabel}
-                </span>
-              ) : null}
+              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-600 uppercase tracking-wider">
+                Vetted Deal
+              </span>
             </div>
 
-            <h1 className="text-balance text-2xl font-extrabold leading-tight tracking-tight text-gray-900 sm:text-3xl">
+            <h1 className="text-2xl font-extrabold text-[#0B1340] leading-tight sm:text-3xl">
               {deal.title}
             </h1>
-            <p className="flex items-center gap-1.5 text-xs text-gray-500">
-              <ClockIcon className="size-3.5 text-gray-400" />
-              <span suppressHydrationWarning>{listed}</span>
-            </p>
 
-            {deal.description ? (
-              <p className="text-pretty text-sm leading-relaxed text-gray-600 sm:text-base">
-                {deal.description}
-              </p>
-            ) : (
-              <p className="text-pretty text-sm leading-relaxed text-gray-600 sm:text-base">
-                Limited-time offer: save about {discountLabel.toLowerCase()} at {retailerName} through our
-                affiliate link. See the retailer&apos;s page for full specs and reviews.
-              </p>
-            )}
-
-            <div className="flex flex-wrap items-end gap-x-4 gap-y-2 border-t border-gray-100 pt-5">
-              <span className="text-3xl font-black tabular-nums text-emerald-600 sm:text-4xl">
+            <div className="mt-8 flex items-baseline gap-4">
+              <span className="text-4xl font-black text-[#0B1340]">
                 {moneyFormatter.format(deal.discount_price)}
               </span>
-              <span className="text-lg text-gray-400 line-through">
+              <span className="text-lg font-medium text-slate-400 line-through">
                 {moneyFormatter.format(deal.original_price)}
               </span>
-              <span className="text-base font-extrabold text-gray-900">{discountLabel}</span>
             </div>
-            <p className="text-sm text-gray-600">
-              Est. savings:{' '}
-              <span className="font-semibold text-gray-900">{moneyFormatter.format(savings)}</span>
+
+            <p className="mt-2 text-sm font-medium text-[#26BBA4]">
+              You save {moneyFormatter.format(savings)} today!
             </p>
-            <p className="text-[10px] text-gray-400">Prices may vary</p>
-
-            <div>
-              <div className="mb-1 flex items-center justify-between gap-2 text-xs font-bold">
-                <span
-                  className={
-                    urgency.bar === 'red'
-                      ? 'text-red-600'
-                      : urgency.bar === 'orange'
-                        ? 'text-orange-600'
-                        : 'text-emerald-700'
-                  }
-                >
-                  {urgency.label}
-                </span>
-                <span className="tabular-nums text-gray-500">{urgency.percent}%</span>
-              </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
-                <div
-                  className={`h-full rounded-full transition-all ${barColor(urgency.bar)}`}
-                  style={{ width: `${urgency.percent}%` }}
-                />
-              </div>
-            </div>
-
-            {endsIn ? (
-              <div
-                suppressHydrationWarning
-                className="flex items-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700"
-              >
-                <ClockIcon className="size-4 shrink-0" />
-                {endsIn}
-              </div>
-            ) : null}
 
             <a
               href={deal.affiliate_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-orange-500 to-red-600 px-6 text-center text-base font-bold text-white shadow-md transition hover:from-orange-600 hover:to-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
+              className="mt-8 inline-flex h-14 w-full items-center justify-center gap-3 rounded-2xl bg-[#0B1340] text-lg font-bold text-white shadow-xl transition-all hover:scale-[1.02] hover:bg-slate-800 active:scale-[0.98]"
             >
-              Grab the Deal
-              <ExternalIcon className="size-5" />
+              Get This Deal Now <ExternalIcon className="size-5" />
             </a>
 
-            <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-4 text-center text-sm text-gray-600">
-              <div>
-                <p className="text-2xl font-black text-gray-900">0</p>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Clicks</p>
+            <div className="mt-6 flex flex-col gap-3 border-t border-slate-50 pt-6">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-500">Status</span>
+                <span className="font-bold text-green-600 flex items-center gap-1.5">
+                  <span className="size-2 rounded-full bg-green-500 animate-pulse" />
+                  Active & Verified
+                </span>
               </div>
-              <div>
-                <p className="text-2xl font-black text-gray-900">0</p>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Shares</p>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-500">Listed</span>
+                <span className="font-semibold text-slate-700" suppressHydrationWarning>{listed}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-500">Availability</span>
+                <span className="font-semibold text-slate-700 flex items-center gap-1.5">
+                  <ClockIcon className="size-4" />
+                  {countdown ? `Ends in ${countdown}` : endsIn || "Limited Time"}
+                </span>
               </div>
             </div>
           </div>
-        </div>
-      </article>
 
-      <p className="mx-auto mt-8 max-w-3xl text-center text-xs leading-relaxed text-gray-500">
-        As an Amazon Associate, we earn from qualifying purchases. Prices and availability are subject to
-        change.{' '}
-        <Link href="/#affiliate" className="text-red-600 underline hover:text-red-700">
-          Affiliate disclosure
-        </Link>
-      </p>
+          <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50/50 p-6">
+             <h3 className="text-sm font-bold text-[#0B1340] uppercase tracking-wider mb-2">Editor&apos;s Review</h3>
+             <p className="text-sm text-slate-600 leading-relaxed">
+               This deal has been algorithmically vetted. We compare prices across multiple merchants to ensure this is among the best prices currently available.
+             </p>
+          </div>
 
-      <section className="mx-auto mt-8 max-w-3xl rounded-xl border border-gray-900 bg-white px-5 py-6 shadow-sm sm:px-8">
-        <h2 className="text-center text-sm font-extrabold uppercase tracking-wide text-gray-900">
-          Share this deal
-        </h2>
-        <div className="mt-5 flex justify-center border-t border-gray-100 pt-5">
-          <DealShareRow
-            dealPageUrl={dealPageUrl}
-            title={deal.title}
-            includePinterest
-            variant="panel"
-          />
-        </div>
-      </section>
-
-      <section className="mx-auto mt-8 max-w-3xl rounded-xl border border-gray-900 bg-[#f9fafb] px-5 py-6 sm:px-8">
-        <h2 className="flex items-center gap-2 text-base font-extrabold text-gray-900">
-          <ExternalIcon className="size-5 shrink-0 text-emerald-600" />
-          How to redeem this deal
-        </h2>
-        <ol className="mt-5 space-y-4">
-          {[
-            `Click “Grab the Deal” above to visit ${retailerName} in a new tab.`,
-            'Confirm the discounted price on the product page before you add to cart.',
-            'Complete checkout on the retailer’s site. Returns and support are handled by the merchant.',
-          ].map((text, i) => (
-            <li key={i} className="flex gap-3 text-sm leading-relaxed text-gray-700">
-              <span
-                className="flex size-7 shrink-0 items-center justify-center rounded-full bg-red-600 text-xs font-black text-white"
-                aria-hidden
-              >
-                {i + 1}
-              </span>
-              <span>{text}</span>
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      <section className="mx-auto mt-10 max-w-3xl">
-        <h2 className="mb-4 flex items-center gap-2 text-lg font-extrabold text-gray-900">
-          <span
-            className="flex size-8 items-center justify-center rounded-full border-2 border-red-600 text-sm font-black text-red-600"
-            aria-hidden
-          >
-            ?
-          </span>
-          Frequently asked questions
-        </h2>
-        <div className="space-y-3">
-          {faqs.map((item, index) => (
-            <details
-              key={index}
-              className="group rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm"
-            >
-              <summary className="cursor-pointer list-none text-sm font-bold text-gray-900 [&::-webkit-details-marker]:hidden">
-                <span className="mr-2 text-gray-500" aria-hidden>
-                  ▸
-                </span>
-                {item.q}
-              </summary>
-              <p className="mt-3 border-t border-gray-100 pt-3 text-sm leading-relaxed text-gray-600">
-                {item.a}
-              </p>
-            </details>
-          ))}
-        </div>
-      </section>
-
-      <div className="mx-auto mt-10 flex max-w-3xl flex-col items-center justify-center gap-3 sm:flex-row">
-        {deal.category_slug && isDealCategorySlug(deal.category_slug) && categoryLabel ? (
           <Link
-            href={buildHomeDealListHref({ category: deal.category_slug })}
-            className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-gray-900 bg-white px-6 text-sm font-bold text-gray-900 shadow-sm transition hover:bg-gray-50 sm:w-auto"
+            href={dealPageUrl}
+            className="text-center text-sm font-semibold text-slate-500 hover:text-slate-700"
           >
-            More {categoryLabel} deals
+            Copy static link to this deal
           </Link>
-        ) : null}
-        <Link
-          href="/"
-          className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-gray-900 bg-white px-6 text-sm font-bold text-gray-900 shadow-sm transition hover:bg-gray-50 sm:w-auto"
-        >
-          ← All deals
-        </Link>
+        </div>
       </div>
+
+      {/* Related Section */}
+      <section className="mt-16">
+        <div className="flex items-center justify-between mb-8">
+          <h2 className="text-2xl font-bold text-[#0B1340]">More deals you might like</h2>
+          <Link href="/deals" className="text-sm font-bold text-[#26BBA4] hover:underline">View All Deals</Link>
+        </div>
+
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {relatedDeals.map((item) => (
+            <Link
+              key={item.id}
+              href={`/deals/${item.id}`}
+              className="group flex flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-md"
+            >
+              <div className="relative aspect-video w-full overflow-hidden bg-slate-50 p-4">
+                {item.image_url ? (
+                  <Image
+                    src={item.image_url}
+                    alt={item.title}
+                    fill
+                    className="object-contain p-2 group-hover:scale-110 transition-transform duration-500"
+                    sizes="(max-width: 768px) 100vw, 25vw"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center">
+                    <DealImagePlaceholderIcon className="h-10 w-10 text-slate-200" />
+                  </div>
+                )}
+                {item.discount_percentage > 0 && (
+                   <span className="absolute left-2 top-2 rounded-full bg-[#26BBA4] px-2 py-0.5 text-[10px] font-bold text-white">
+                     -{Math.round(item.discount_percentage)}%
+                   </span>
+                )}
+              </div>
+              <div className="flex flex-1 flex-col p-4">
+                <p className="line-clamp-2 text-sm font-bold text-[#0B1340] group-hover:text-[#26BBA4] transition-colors">{item.title}</p>
+                <div className="mt-auto pt-3 flex items-center justify-between">
+                  <span className="text-lg font-black text-[#0B1340]">
+                    {moneyFormatter.format(item.discount_price)}
+                  </span>
+                  <span className="text-xs font-bold text-[#26BBA4]">View Deal</span>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

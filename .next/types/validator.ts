@@ -92,6 +92,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../src/app/deals/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/deals">> = Specific
+  const handler = {} as typeof import("../../src/app/deals/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../src/app/page.tsx
 {
   type __IsExpected<Specific extends AppPageConfig<"/">> = Specific
@@ -101,10 +110,46 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../src/app/profile/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/profile">> = Specific
+  const handler = {} as typeof import("../../src/app/profile/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/search/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/search">> = Specific
+  const handler = {} as typeof import("../../src/app/search/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../src/app/api/contact/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/contact">> = Specific
   const handler = {} as typeof import("../../src/app/api/contact/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/api/deals/active/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/deals/active">> = Specific
+  const handler = {} as typeof import("../../src/app/api/deals/active/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/api/deals/curated/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/deals/curated">> = Specific
+  const handler = {} as typeof import("../../src/app/api/deals/curated/route.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check

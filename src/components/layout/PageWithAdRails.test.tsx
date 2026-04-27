@@ -7,7 +7,7 @@ afterEach(() => {
 });
 
 describe('PageWithAdRails', () => {
-  it('renders center content and reserves left/right ad slots', () => {
+  it('renders content without side ad slots', () => {
     render(
       <PageWithAdRails>
         <main>
@@ -17,7 +17,7 @@ describe('PageWithAdRails', () => {
     );
 
     expect(screen.getByText('Feed')).toBeInTheDocument();
-    expect(screen.getByTestId('ad-slot-left')).toBeInTheDocument();
-    expect(screen.getByTestId('ad-slot-right')).toBeInTheDocument();
+    expect(screen.queryByTestId('ad-slot-left')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('ad-slot-right')).not.toBeInTheDocument();
   });
 });

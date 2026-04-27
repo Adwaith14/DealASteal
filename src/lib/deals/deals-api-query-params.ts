@@ -27,3 +27,8 @@ export function parseOffsetLimitQuery(
     offset: parseIntInRange(sp.get('offset'), { default: 0, min: 0, max: 50_000 }),
   };
 }
+
+/** ``limit`` for home curated expand (GET ``/api/deals/curated``). */
+export function parseCuratedExpandLimit(sp: URLSearchParams): number {
+  return parseIntInRange(sp.get('limit'), { default: 24, min: 6, max: 48 });
+}

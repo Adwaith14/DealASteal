@@ -1,5 +1,7 @@
 import type { DealStoreFilterKey } from '@/constants/deal-browse-filters';
 import {
+  type CatalogSortMode,
+  CATALOG_SORT_MODES,
   DEAL_STORE_URL_NEEDLES,
   isDealStoreFilterKey,
   MAX_DEAL_PRICE_OPTIONS,
@@ -36,6 +38,8 @@ export type ActiveDealsQuery = {
   maxPrice?: number;
   /** When true, only ``is_loot_deal`` rows (URL ``loot=1``). */
   lootOnly?: boolean;
+  /** Catalog ordering (URL ``sort=``). */
+  sort?: CatalogSortMode;
 };
 
 export type ActiveDealsFetchSuccess = {
@@ -51,6 +55,7 @@ export type ActiveDealsFetchSuccess = {
   appliedMinDiscount: number | null;
   appliedMaxPrice: number | null;
   appliedLootOnly: boolean;
+  appliedSort: CatalogSortMode | null;
 };
 
 export type ActiveDealsFetchFailure = {
@@ -98,6 +103,7 @@ function normalizePagination(query: ActiveDealsQuery | undefined): {
   minDiscount: number | null;
   maxPrice: number | null;
   lootOnly: boolean;
+  sort: CatalogSortMode | null;
 } {
   const rawPage = query?.page ?? 1;
   const page = Number.isFinite(rawPage) && rawPage >= 1 ? Math.floor(rawPage) : 1;
@@ -127,7 +133,12 @@ function normalizePagination(query: ActiveDealsQuery | undefined): {
       ? maxPriceFloored
       : null;
   const lootOnly = query?.lootOnly === true;
-  return { page, pageSize, search, categorySlug, storeKey, minDiscount, maxPrice, lootOnly };
+  const rawSort = query?.sort;
+  const sort =
+    rawSort != null && (CATALOG_SORT_MODES as readonly CatalogSortMode[]).includes(rawSort)
+      ? rawSort
+      : null;
+  return { page, pageSize, search, categorySlug, storeKey, minDiscount, maxPrice, lootOnly, sort };
 }
 
 function escapeIlikePattern(value: string): string {
@@ -141,8 +152,18 @@ function escapeIlikePattern(value: string): string {
 export async function getActiveDeals(
   query?: ActiveDealsQuery
 ): Promise<ActiveDealsFetchResult> {
-  const { page, pageSize, search, categorySlug, storeKey, minDiscount, maxPrice, lootOnly } =
-    normalizePagination(query);
+  const normalized = normalizePagination(query);
+  const {
+    page,
+    pageSize,
+    search,
+    categorySlug,
+    storeKey,
+    minDiscount,
+    maxPrice,
+    lootOnly,
+    sort: catalogSort,
+  } = normalized;
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
@@ -178,9 +199,20 @@ export async function getActiveDeals(
       builder = builder.eq('is_loot_deal', true);
     }
 
-    const { data, error, count } = await builder
-      .order('created_at', { ascending: false })
-      .range(from, to);
+    if (catalogSort === 'biggest_drop') {
+      builder = builder
+        .order('discount_percentage', { ascending: false })
+        .order('created_at', { ascending: false });
+    } else if (catalogSort === 'popular') {
+      builder = builder
+        .order('is_loot_deal', { ascending: false })
+        .order('discount_percentage', { ascending: false })
+        .order('created_at', { ascending: false });
+    } else {
+      builder = builder.order('created_at', { ascending: false });
+    }
+
+    const { data, error, count } = await builder.range(from, to);
 
     if (error) {
       logPostgrestError('getActiveDeals failed', error);
@@ -210,6 +242,7 @@ export async function getActiveDeals(
       appliedMinDiscount: minDiscount,
       appliedMaxPrice: maxPrice,
       appliedLootOnly: lootOnly,
+      appliedSort: catalogSort,
     };
   } catch (cause) {
     const message =

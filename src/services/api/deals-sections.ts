@@ -1,10 +1,36 @@
 import { getSupabaseServerAnon } from '@/lib/supabase/server';
-import type { Deal, CouponDiscountType } from '@/types/database.types';
+import type { CouponDiscountType, Deal, DealWithMerchantName } from '@/types/database.types';
 import { logPostgrestError } from './log-postgrest-error';
 import { mapDealsPostgrestError } from './map-deals-postgrest-user-message';
 
 const DEAL_SELECT =
   'id, merchant_id, title, description, original_price, discount_price, discount_percentage, affiliate_url, image_url, is_loot_deal, is_active, expires_at, created_at, category_slug, ingest_external_id';
+
+const DEAL_SELECT_WITH_MERCHANT = `${DEAL_SELECT}, merchants(name)`;
+
+function readMerchantNameFromRow(row: Record<string, unknown>): string | null {
+  const m = row.merchants;
+  if (m == null) {
+    return null;
+  }
+  if (Array.isArray(m)) {
+    const first = m[0] as { name?: string } | undefined;
+    return typeof first?.name === 'string' ? first.name : null;
+  }
+  if (typeof m === 'object' && 'name' in m) {
+    const name = (m as { name: unknown }).name;
+    return typeof name === 'string' ? name : null;
+  }
+  return null;
+}
+
+function toDealWithMerchant(row: Record<string, unknown>): DealWithMerchantName {
+  const { merchants: _m, ...rest } = row;
+  return {
+    ...(rest as unknown as Deal),
+    merchant_name: readMerchantNameFromRow(row),
+  };
+}
 
 export interface DealWithCoupon extends Deal {
   coupon_code: string;
@@ -19,8 +45,12 @@ export interface SectionResult {
   fetchError?: string;
 }
 
-export type ExpiringSectionResult = { deals: Deal[]; fetchError?: string };
+export type ExpiringSectionResult = { deals: DealWithMerchantName[]; fetchError?: string };
 export type CouponSectionResult = { deals: DealWithCoupon[]; fetchError?: string };
+
+export type CuratedSortMode = 'popular' | 'newest' | 'biggest_drop';
+
+export type CuratedSectionResult = { deals: DealWithMerchantName[]; fetchError?: string };
 
 /** Deals expiring within the next 7 days, ordered by soonest expiry first. */
 export async function getExpiringDeals(limit = 20): Promise<ExpiringSectionResult> {
@@ -30,7 +60,7 @@ export async function getExpiringDeals(limit = 20): Promise<ExpiringSectionResul
     const weekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     const { data, error } = await supabase
       .from('deals')
-      .select(DEAL_SELECT)
+      .select(DEAL_SELECT_WITH_MERCHANT)
       .eq('is_active', true)
       .not('expires_at', 'is', null)
       .gt('expires_at', now)
@@ -44,7 +74,46 @@ export async function getExpiringDeals(limit = 20): Promise<ExpiringSectionResul
         fetchError: mapDealsPostgrestError('Could not load expiring deals', error),
       };
     }
-    return { deals: (data ?? []) as Deal[] };
+    const rows = (data ?? []) as Record<string, unknown>[];
+    return { deals: rows.map(toDealWithMerchant) };
+  } catch {
+    return { deals: [] };
+  }
+}
+
+/**
+ * Curated grid: ``newest`` by ``created_at``; ``biggest_drop`` by ``discount_percentage``;
+ * ``popular`` uses loot flag + discount + recency (no separate popularity metric in schema).
+ */
+export async function getCuratedDeals(
+  sort: CuratedSortMode,
+  limit = 6
+): Promise<CuratedSectionResult> {
+  try {
+    const supabase = getSupabaseServerAnon();
+    let q = supabase.from('deals').select(DEAL_SELECT_WITH_MERCHANT).eq('is_active', true);
+    if (sort === 'newest') {
+      q = q.order('created_at', { ascending: false });
+    } else if (sort === 'biggest_drop') {
+      q = q
+        .order('discount_percentage', { ascending: false })
+        .order('created_at', { ascending: false });
+    } else {
+      q = q
+        .order('is_loot_deal', { ascending: false })
+        .order('discount_percentage', { ascending: false })
+        .order('created_at', { ascending: false });
+    }
+    const { data, error } = await q.limit(limit);
+    if (error) {
+      logPostgrestError('getCuratedDeals', error);
+      return {
+        deals: [],
+        fetchError: mapDealsPostgrestError('Could not load curated deals', error),
+      };
+    }
+    const rows = (data ?? []) as Record<string, unknown>[];
+    return { deals: rows.map(toDealWithMerchant) };
   } catch {
     return { deals: [] };
   }

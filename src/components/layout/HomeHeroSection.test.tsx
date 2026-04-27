@@ -8,18 +8,19 @@ afterEach(() => {
 });
 
 describe('HomeHeroSection', () => {
-  it('renders hero heading and optional children', () => {
+  it('renders optional children in browse strip (no marketing hero)', () => {
     render(
       <HomeHeroSection>
         <p>Filter strip</p>
       </HomeHeroSection>
     );
 
-    expect(
-      screen.getByRole('heading', {
-        name: /Grab the Deals — Today's Best Coupons & Discounts/i,
-      })
-    ).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /Grab the Deals/i })).not.toBeInTheDocument();
     expect(screen.getByText('Filter strip')).toBeInTheDocument();
+  });
+
+  it('renders nothing when there are no children', () => {
+    const { container } = render(<HomeHeroSection />);
+    expect(container.firstChild).toBeNull();
   });
 });

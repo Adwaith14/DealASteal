@@ -73,3 +73,16 @@ export function normalizeLootDealsParam(raw: string | undefined | null): boolean
   }
   return LOOT_DEALS_TRUTHY.has(raw.trim().toLowerCase());
 }
+
+/** Same ordering as home rows (``getCuratedDeals``) for ``/deals?sort=``. */
+export const CATALOG_SORT_MODES = ['popular', 'newest', 'biggest_drop'] as const;
+
+export type CatalogSortMode = (typeof CATALOG_SORT_MODES)[number];
+
+export function normalizeCatalogSortParam(raw: string | undefined | null): CatalogSortMode | null {
+  if (raw == null || typeof raw !== 'string') {
+    return null;
+  }
+  const t = raw.trim().toLowerCase();
+  return (CATALOG_SORT_MODES as readonly string[]).includes(t) ? (t as CatalogSortMode) : null;
+}

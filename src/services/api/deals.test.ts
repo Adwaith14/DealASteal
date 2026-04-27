@@ -152,6 +152,7 @@ describe('getActiveDeals', () => {
       expect(result.appliedMinDiscount).toBeNull();
       expect(result.appliedMaxPrice).toBeNull();
       expect(result.appliedLootOnly).toBe(false);
+      expect(result.appliedSort).toBeNull();
     }
   });
 
@@ -203,6 +204,7 @@ describe('getActiveDeals', () => {
     if (result.ok) {
       expect(result.appliedQuery).toBe('usb');
       expect(result.appliedLootOnly).toBe(false);
+      expect(result.appliedSort).toBeNull();
     }
   });
 
@@ -215,6 +217,7 @@ describe('getActiveDeals', () => {
     if (result.ok) {
       expect(result.appliedCategorySlug).toBe('tech');
       expect(result.appliedLootOnly).toBe(false);
+      expect(result.appliedSort).toBeNull();
     }
   });
 
@@ -230,6 +233,7 @@ describe('getActiveDeals', () => {
     if (result.ok) {
       expect(result.appliedCategorySlug).toBeNull();
       expect(result.appliedLootOnly).toBe(false);
+      expect(result.appliedSort).toBeNull();
     }
   });
 
@@ -242,6 +246,7 @@ describe('getActiveDeals', () => {
     if (result.ok) {
       expect(result.appliedStore).toBe('amazon');
       expect(result.appliedLootOnly).toBe(false);
+      expect(result.appliedSort).toBeNull();
     }
   });
 
@@ -256,6 +261,7 @@ describe('getActiveDeals', () => {
       expect(result.appliedMinDiscount).toBe(25);
       expect(result.appliedMaxPrice).toBe(100);
       expect(result.appliedLootOnly).toBe(false);
+      expect(result.appliedSort).toBeNull();
     }
   });
 
@@ -281,7 +287,33 @@ describe('getActiveDeals', () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.appliedLootOnly).toBe(true);
+      expect(result.appliedSort).toBeNull();
     }
+  });
+
+  it('applies popular multi-column ordering', async () => {
+    builder.range.mockResolvedValue({ data: [], error: null, count: 0 });
+    const { getActiveDeals } = await import('./deals');
+    const result = await getActiveDeals({ sort: 'popular' });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.appliedSort).toBe('popular');
+    }
+    expect(builder.order).toHaveBeenCalledWith('is_loot_deal', { ascending: false });
+    expect(builder.order).toHaveBeenCalledWith('discount_percentage', { ascending: false });
+    expect(builder.order).toHaveBeenCalledWith('created_at', { ascending: false });
+  });
+
+  it('applies biggest_drop sort ordering', async () => {
+    builder.range.mockResolvedValue({ data: [], error: null, count: 0 });
+    const { getActiveDeals } = await import('./deals');
+    const result = await getActiveDeals({ sort: 'biggest_drop' });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.appliedSort).toBe('biggest_drop');
+    }
+    expect(builder.order).toHaveBeenCalledWith('discount_percentage', { ascending: false });
+    expect(builder.order).toHaveBeenCalledWith('created_at', { ascending: false });
   });
 });
 

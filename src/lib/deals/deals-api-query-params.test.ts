@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { parseLatestDealsQuery, parseOffsetLimitQuery } from './deals-api-query-params';
+import {
+  parseCuratedExpandLimit,
+  parseLatestDealsQuery,
+  parseOffsetLimitQuery,
+} from './deals-api-query-params';
 
 describe('parseLatestDealsQuery', () => {
   it('defaults when page or pageSize are garbage', () => {
@@ -22,5 +26,13 @@ describe('parseOffsetLimitQuery', () => {
   it('clamps offset upper bound', () => {
     const sp = new URLSearchParams('limit=10&offset=99999999');
     expect(parseOffsetLimitQuery(sp, 48)).toEqual({ limit: 10, offset: 50_000 });
+  });
+});
+
+describe('parseCuratedExpandLimit', () => {
+  it('defaults and clamps between 6 and 48', () => {
+    expect(parseCuratedExpandLimit(new URLSearchParams())).toBe(24);
+    expect(parseCuratedExpandLimit(new URLSearchParams('limit=3'))).toBe(6);
+    expect(parseCuratedExpandLimit(new URLSearchParams('limit=99'))).toBe(48);
   });
 });

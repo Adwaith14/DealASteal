@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildHomeDealListHref } from './deal-feed-query';
+import { buildDealListHref, buildHomeDealListHref } from './deal-feed-query';
 
 describe('buildHomeDealListHref', () => {
   it('returns / when no params', () => {
@@ -32,5 +32,15 @@ describe('buildHomeDealListHref', () => {
 
   it('includes loot=1 when lootDeals is true', () => {
     expect(buildHomeDealListHref({ lootDeals: true })).toBe('/?loot=1');
+  });
+});
+
+describe('buildDealListHref', () => {
+  it('uses custom pathname for list route', () => {
+    expect(buildDealListHref('/deals', { page: 2, category: 'tech' })).toBe('/deals?page=2&category=tech');
+  });
+
+  it('includes sort for catalog', () => {
+    expect(buildDealListHref('/deals', { sort: 'biggest_drop' })).toBe('/deals?sort=biggest_drop');
   });
 });

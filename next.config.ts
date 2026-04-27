@@ -29,6 +29,12 @@ function buildImageRemotePatterns(): RemotePattern[] {
     pathname: '/**',
   });
 
+  patterns.push({
+    protocol: 'https',
+    hostname: 'images.unsplash.com',
+    pathname: '/**',
+  });
+
   return patterns;
 }
 

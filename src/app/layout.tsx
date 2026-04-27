@@ -10,8 +10,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: 'DealASteal | Verified deals & discounts',
-    template: '%s | DealASteal',
+    default: 'AI Deals | Verified deals & discounts',
+    template: '%s | AI Deals',
   },
   description:
     'Discover verified deals and discounts from top stores. Save on electronics, fashion, home & more.',
