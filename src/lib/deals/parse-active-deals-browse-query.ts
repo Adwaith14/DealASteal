@@ -1,6 +1,6 @@
 import type { ActiveDealsQuery } from '@/services/api/deals';
 import {
-  normalizeCatalogSortParam,
+  normalizeDealSortParam,
   normalizeLootDealsParam,
   normalizeMaxPriceParam,
   normalizeMinDiscountParam,
@@ -33,7 +33,7 @@ export function parseActiveDealsBrowseFromSearchParams(
   const appliedMaxPrice = normalizeMaxPriceParam(pick(sp, 'max_price'));
   const appliedMinDiscount = normalizeMinDiscountParam(pick(sp, 'min_disc'));
   const appliedLootOnly = normalizeLootDealsParam(pick(sp, 'loot'));
-  const appliedSort = normalizeCatalogSortParam(pick(sp, 'sort'));
+  const appliedSort = normalizeDealSortParam(pick(sp, 'sort'));
 
   return {
     page,

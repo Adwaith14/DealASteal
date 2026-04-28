@@ -6,7 +6,7 @@ import { ActiveDealsInfiniteList } from '@/components/deals/ActiveDealsInfiniteL
 import { getActiveDeals } from '@/services/api/deals';
 import { parseActiveDealsBrowseFromSearchParams } from '@/lib/deals/parse-active-deals-browse-query';
 import {
-  normalizeCatalogSortParam,
+  normalizeDealSortParam,
   normalizeLootDealsParam,
   normalizeMaxPriceParam,
 } from '@/constants/deal-browse-filters';
@@ -33,7 +33,7 @@ export default async function DealsCatalogPage({ searchParams }: DealsCatalogPag
   const categoryForFilter = isDealCategorySlug(categoryNorm) ? categoryNorm : null;
   const appliedMaxPrice = normalizeMaxPriceParam(typeof sp.max_price === 'string' ? sp.max_price : '');
   const appliedLootOnly = normalizeLootDealsParam(typeof sp.loot === 'string' ? sp.loot : '');
-  const appliedSort = normalizeCatalogSortParam(typeof sp.sort === 'string' ? sp.sort : '');
+  const appliedSort = normalizeDealSortParam(typeof sp.sort === 'string' ? sp.sort : '');
 
   const browse = parseActiveDealsBrowseFromSearchParams({
     page: '1',

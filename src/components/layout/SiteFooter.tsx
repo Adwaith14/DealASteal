@@ -81,7 +81,7 @@ export function SiteFooter({ fullWidth }: { fullWidth?: boolean }) {
               Get the top 10 vetted deals in your inbox daily.
             </p>
             <p className="mt-2 text-xs leading-relaxed text-gray-400">
-              DealASteal earns commissions from qualifying purchases through affiliate links (FTC disclosure).
+              AI Deals earns commissions from qualifying purchases through affiliate links (FTC disclosure).
               As an Amazon Associate we earn from qualifying purchases. Prices and availability are subject to
               change.
             </p>
@@ -110,7 +110,7 @@ export function SiteFooter({ fullWidth }: { fullWidth?: boolean }) {
           id="footer-bottom"
           className="mt-12 flex flex-col gap-2 border-t border-white/10 pt-8 text-center text-xs text-gray-500 sm:text-left"
         >
-          <p>© {new Date().getFullYear()} DealASteal. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} AI Deals. All rights reserved.</p>
           <p className="max-w-xl text-right sm:text-left">
             Prices may vary from actual store listing.{' '}
             <Link href="/affiliate-disclosure" className="text-gray-400 underline hover:text-white">

@@ -1,4 +1,5 @@
 import 'server-only';
+import { unstable_cache } from 'next/cache';
 import { dealSelectColumnsForPostgrest, dealsDbHasAdminSchema } from '@/lib/catalog/deals-db-schema';
 import { DEALS_UNAVAILABLE_WITHOUT_PUBLIC_SUPABASE } from '@/lib/supabase/deals-db-unavailable-message';
 import { getSupabaseServerAnon } from '@/lib/supabase/server';
@@ -22,13 +23,62 @@ export interface SectionResult {
 export type ExpiringSectionResult = { deals: Deal[]; fetchError?: string };
 export type CouponSectionResult = { deals: DealWithCoupon[]; fetchError?: string };
 
+export type CuratedSortMode = 'popular' | 'newest' | 'biggest_drop';
+
+export type CuratedSectionResult = { deals: Deal[]; fetchError?: string };
+
+/**
+ * Curated grid: `newest` by `created_at`; `biggest_drop` by `discount_percentage`;
+ * `popular` uses loot flag + discount + recency (no separate popularity metric in schema).
+ */
+export const getCuratedDeals = unstable_cache(
+  async (
+    sort: CuratedSortMode,
+    limit = 6
+  ): Promise<CuratedSectionResult> => {
+  try {
+    const supabase = getSupabaseServerAnon();
+    if (!supabase) {
+      return { deals: [], fetchError: DEALS_UNAVAILABLE_WITHOUT_PUBLIC_SUPABASE };
+    }
+    let q = supabase.from('deals').select(dealSelectColumnsForPostgrest()).eq('is_active', true);
+    if (sort === 'newest') {
+      q = q.order('created_at', { ascending: false });
+    } else if (sort === 'biggest_drop') {
+      q = q
+        .order('discount_percentage', { ascending: false })
+        .order('created_at', { ascending: false });
+    } else {
+      q = q
+        .order('is_loot_deal', { ascending: false })
+        .order('discount_percentage', { ascending: false })
+        .order('created_at', { ascending: false });
+    }
+    if (dealsDbHasAdminSchema()) {
+      q = q.order('admin_pinned_at', { ascending: false, nullsFirst: false });
+    }
+    const { data, error } = await q.limit(limit);
+    if (error) {
+      logPostgrestError('getCuratedDeals', error);
+      return {
+        deals: [],
+        fetchError: mapDealsPostgrestError('Could not load curated deals', error),
+      };
+    }
+    return { deals: (data ?? []) as unknown as Deal[] };
+  } catch {
+    return { deals: [] };
+  }
+}, ['deals-curated'], { revalidate: 300 });
+
 export type BestDealOfDayResult = {
   deal: Deal | null;
   fetchError?: string;
 };
 
 /** Deals expiring within the next 7 days, ordered by soonest expiry first. */
-export async function getExpiringDeals(limit = 20): Promise<ExpiringSectionResult> {
+export const getExpiringDeals = unstable_cache(
+  async (limit = 20): Promise<ExpiringSectionResult> => {
   try {
     const supabase = getSupabaseServerAnon();
     if (!supabase) {
@@ -58,7 +108,7 @@ export async function getExpiringDeals(limit = 20): Promise<ExpiringSectionResul
   } catch {
     return { deals: [] };
   }
-}
+}, ['deals-expiring'], { revalidate: 300 });
 
 /** Active deals that have an associated active coupon code. */
 export async function getCouponDeals(limit = 16): Promise<CouponSectionResult> {
@@ -109,9 +159,10 @@ export async function getCouponDeals(limit = 16): Promise<CouponSectionResult> {
 }
 
 /** Deals with highest discount percentage (≥ 40 %). */
-export async function getTopDeals(
-  opts: { limit?: number; offset?: number } = {}
-): Promise<SectionResult> {
+export const getTopDeals = unstable_cache(
+  async (
+    opts: { limit?: number; offset?: number } = {}
+  ): Promise<SectionResult> => {
   const { limit = 6, offset = 0 } = opts;
   try {
     const supabase = getSupabaseServerAnon();
@@ -164,7 +215,7 @@ export async function getTopDeals(
   } catch {
     return { deals: [], total: 0 };
   }
-}
+}, ['deals-top'], { revalidate: 300 });
 
 /** Loot/hot deals: is_loot_deal = true, ordered newest first. */
 export async function getHotDeals(
@@ -226,7 +277,8 @@ export async function getHotDeals(
  * Top scored row from ``best_deals_today`` (materialised view), hydrated with a full ``deals`` row.
  * Requires migration ``20260427153000_deal_scoring_job.sql`` + periodic ``refresh_deal_scores``.
  */
-export async function getBestDealOfDay(): Promise<BestDealOfDayResult> {
+export const getBestDealOfDay = unstable_cache(
+  async (): Promise<BestDealOfDayResult> => {
   try {
     const supabase = getSupabaseServerAnon();
     if (!supabase) {
@@ -272,7 +324,7 @@ export async function getBestDealOfDay(): Promise<BestDealOfDayResult> {
   } catch {
     return { deal: null };
   }
-}
+}, ['deals-best-of-day'], { revalidate: 300 });
 
 /** All active deals ordered newest first with offset pagination. */
 export async function getLatestDeals(

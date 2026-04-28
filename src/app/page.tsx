@@ -4,11 +4,8 @@ import { PageWithAdRails } from '@/components/layout/PageWithAdRails';
 import { SiteFooter } from '@/components/layout/SiteFooter';
 import { SiteHeader } from '@/components/layout/SiteHeader';
 import { HomeFilterBar } from '@/components/deals/HomeFilterBar';
-import { HorizontalDealScroll } from '@/components/deals/HorizontalDealScroll';
-import { ExpandableDealsSection } from '@/components/deals/ExpandableDealsSection';
-import { LatestDealsSection } from '@/components/deals/LatestDealsSection';
 import { DealBrowseView } from '@/components/deals/DealBrowseView';
-import { BestDealHero } from '@/components/sections/BestDealHero';
+import { BestDealsMarquee } from '@/components/deals/BestDealsMarquee';
 import { ActiveDealsInfiniteList } from '@/components/deals/ActiveDealsInfiniteList';
 import { HomeMarketingHero } from '@/components/marketing/HomeMarketingHero';
 import { FlashSalesSection } from '@/components/marketing/FlashSalesSection';
@@ -96,7 +93,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       min_disc: typeof sp.min_disc === 'string' ? sp.min_disc : undefined,
       max_price: typeof sp.max_price === 'string' ? sp.max_price : undefined,
       loot: typeof sp.loot === 'string' ? sp.loot : undefined,
-    });
     });
     const result = await getActiveDeals(browse);
 
@@ -221,7 +217,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
   return (
     <div className="flex min-h-dvh min-w-0 max-w-full flex-col bg-[#f5f5f5] text-gray-900">
-      <SiteHeader initialSearchQuery="" />
+      <SiteHeader />
       <HomeMarketingHero />
 
       <PageWithAdRails className="flex-1 pb-8 pt-2">
@@ -244,48 +240,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             </div>
           ) : null}
 
-        <BestDealHero deal={bestDealResult.deal} origin={origin} />
+        <BestDealsMarquee deals={topResult.deals} origin={origin} />
 
         <HomeCategoryTiles />
         
-        {forYouDeals.length > 0 ? (
-          <HorizontalDealScroll
-            icon="✨"
-            title="For you"
-            subtitle="Based on your recent clicks"
-            deals={forYouDeals}
-            origin={origin}
-          />
-        ) : null}
-
         <FlashSalesSection deals={expiringSection.deals} />
 
-        {/* ── Coupon Deals ── */}
-        <HorizontalDealScroll
-          icon="🏷"
-          title="Coupon Deals"
-          subtitle="Use code at checkout"
-          deals={couponSection.deals}
-          origin={origin}
-        />
-
         <CuratedForYouSection buckets={curatedBuckets} />
-
-        {/* ── Top Deals ── */}
-        <ExpandableDealsSection
-          type="top"
-          initialDeals={topResult.deals}
-          total={topResult.total}
-          origin={origin}
-        />
-
-        {/* ── Hot Deals ── */}
-        <ExpandableDealsSection
-          type="hot"
-          initialDeals={hotResult.deals}
-          total={hotResult.total}
-          origin={origin}
-        />
 
         <HomeFaqSection />
         </main>
