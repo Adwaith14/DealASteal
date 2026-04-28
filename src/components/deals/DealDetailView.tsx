@@ -72,7 +72,7 @@ export function DealDetailView({ deal, coupons, dealPageUrl, initialSaved, price
   const savings = Math.max(0, deal.original_price - deal.discount_price);
   const categoryHref =
     deal.category_slug && isDealCategorySlug(deal.category_slug)
-      ? buildDealListHref('/deals', { category: deal.category_slug })
+      ? buildDealListHref('/', { category: deal.category_slug })
       : null;
 
   return (

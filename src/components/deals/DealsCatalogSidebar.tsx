@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useCallback, useTransition } from 'react';
 import {
-  type CatalogSortMode,
+  type DealSortKey,
   MAX_DEAL_PRICE_OPTIONS,
 } from '@/constants/deal-browse-filters';
 import { DEAL_CATEGORY_NAV } from '@/constants/deal-categories';
@@ -14,7 +14,7 @@ type DealsCatalogSidebarProps = {
   activeCategorySlug: string | null;
   activeMaxPrice: number | null;
   activeLootOnly: boolean;
-  activeSort: CatalogSortMode | null;
+  activeSort: DealSortKey | null;
 };
 
 function SidebarSectionTitle({ children }: { children: string }) {
@@ -43,7 +43,7 @@ export function DealsCatalogSidebar({
       category?: string | null;
       maxPrice?: number | null;
       loot?: boolean;
-      sort?: CatalogSortMode | null;
+      sort?: DealSortKey | null;
     }) => {
       return buildDealListHref('/deals', {
         q: searchQuery || undefined,

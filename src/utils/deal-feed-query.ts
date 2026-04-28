@@ -1,6 +1,6 @@
 import type { DealSortKey } from '@/constants/deal-browse-filters';
 
-export type DealListBasePath = '/' | '/search';
+export type DealListBasePath = '/' | '/search' | '/deals';
 
 export type DealListHrefParts = {
   page?: number;

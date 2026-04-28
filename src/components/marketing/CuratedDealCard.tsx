@@ -23,7 +23,7 @@ export function CuratedDealCard({ deal, priority = false }: CuratedDealCardProps
   const discountPct = Math.round(deal.discount_percentage);
   const imageUrl = deal.image_url?.trim() ?? '';
   const hasImage = imageUrl.length > 0;
-  const retailer = deal.merchant_name?.trim() || 'Store';
+  const retailer = 'Store';
   const listed = formatDealListedAgo(deal.created_at);
   const trustWidth = Math.min(100, Math.max(8, discountPct));
 
