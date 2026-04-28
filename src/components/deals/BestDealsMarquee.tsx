@@ -57,12 +57,12 @@ export function BestDealsMarquee({ deals, origin }: BestDealsMarqueeProps) {
                   {deal.title}
                 </p>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  {typeof deal.price === 'number' && (
+                  {typeof deal.discount_price === 'number' && (
                     <span className="text-sm font-black text-[#FF4747]">
-                      ${deal.price.toFixed(2)}
+                      ${deal.discount_price.toFixed(2)}
                     </span>
                   )}
-                  {typeof deal.original_price === 'number' && typeof deal.price === 'number' && deal.original_price > deal.price && (
+                  {typeof deal.original_price === 'number' && typeof deal.discount_price === 'number' && deal.original_price > deal.discount_price && (
                     <span className="text-xs text-gray-400 line-through">
                       ${deal.original_price.toFixed(2)}
                     </span>
