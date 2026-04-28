@@ -64,6 +64,9 @@ export interface Deal {
   admin_pinned_at?: string | null;
 }
 
+/** Deal row joined with ``merchants.name`` for display (home marketing cards). */
+export type DealWithMerchantName = Deal & { merchant_name: string | null };
+
 export type CouponDiscountType = 'percent' | 'fixed';
 
 export interface Coupon {

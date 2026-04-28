@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDealEndsIn, formatDealListedAgo } from './deal-time';
+import { formatDealCountdownColons, formatDealEndsIn, formatDealListedAgo } from './deal-time';
 
 describe('formatDealListedAgo', () => {
   const t0 = Date.parse('2026-06-15T12:00:00.000Z');
@@ -34,5 +34,22 @@ describe('formatDealEndsIn', () => {
   it('formats hours and minutes until expiry', () => {
     const end = new Date(t0 + (15 * 3600000 + 13 * 60000)).toISOString();
     expect(formatDealEndsIn(end, t0)).toBe('Ends in 15h 13m');
+  });
+});
+
+describe('formatDealCountdownColons', () => {
+  const t0 = Date.parse('2026-06-15T12:00:00.000Z');
+
+  it('returns null when no expiry', () => {
+    expect(formatDealCountdownColons(null, t0)).toBeNull();
+  });
+
+  it('returns null when expired', () => {
+    expect(formatDealCountdownColons(new Date(t0 - 1000).toISOString(), t0)).toBeNull();
+  });
+
+  it('formats HH : MM : SS from remaining wall time', () => {
+    const end = new Date(t0 + (2 * 3600000 + 34 * 60000 + 55 * 1000)).toISOString();
+    expect(formatDealCountdownColons(end, t0)).toBe('02 : 34 : 55');
   });
 });

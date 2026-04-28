@@ -7,6 +7,7 @@ import { SiteFooter } from '@/components/layout/SiteFooter';
 import { SiteHeader } from '@/components/layout/SiteHeader';
 import { buildDealPdpMetadata } from '@/lib/deals/build-deal-pdp-metadata';
 import { getApplicableCouponsForDeal } from '@/services/api/coupons';
+import { getActiveDeals } from '@/services/api/deals';
 import { getSiteOrigin } from '@/utils/site-origin';
 import { createSupabaseServerClient } from '@/lib/supabase/ssr-server';
 import { getActiveDealForPdp } from './get-active-deal-for-pdp';
@@ -35,7 +36,7 @@ export default async function DealDetailPage({ params }: PageProps) {
     }
     return (
       <div className="min-h-dvh bg-[#f5f5f5]">
-        <SiteHeader initialSearchQuery="" />
+        <SiteHeader />
         <div
           role="alert"
           className="mx-auto max-w-2xl px-4 py-20 text-center text-gray-900"
@@ -56,6 +57,14 @@ export default async function DealDetailPage({ params }: PageProps) {
   }
 
   const dealPageUrl = `${origin}/deals/${result.deal.id}`;
+  const relatedResult = await getActiveDeals({
+    page: 1,
+    pageSize: 8,
+    category: result.deal.category_slug ?? undefined,
+  });
+  const relatedDeals = relatedResult.ok
+    ? relatedResult.deals.filter((d) => d.id !== result.deal.id).slice(0, 3)
+    : [];
 
   const supabase = await createSupabaseServerClient();
   const {
@@ -96,13 +105,14 @@ export default async function DealDetailPage({ params }: PageProps) {
 
   return (
     <div className="flex min-h-dvh flex-col bg-[#f5f5f5] text-gray-900">
-      <SiteHeader initialSearchQuery="" />
+      <SiteHeader />
       <DealDetailView
         deal={result.deal}
         coupons={couponsResult.ok ? couponsResult.coupons : []}
         dealPageUrl={dealPageUrl}
         initialSaved={initialSaved}
         priceDropAlert={priceDropAlert}
+        relatedDeals={relatedDeals}
       />
       <SiteFooter />
       <FloatingContact />

@@ -54,3 +54,13 @@ describe('buildDealListHref', () => {
     );
   });
 });
+
+describe('buildDealListHref', () => {
+  it('uses custom pathname for list route', () => {
+    expect(buildDealListHref('/deals', { page: 2, category: 'tech' })).toBe('/deals?page=2&category=tech');
+  });
+
+  it('includes sort for catalog', () => {
+    expect(buildDealListHref('/deals', { sort: 'biggest_drop' })).toBe('/deals?sort=biggest_drop');
+  });
+});

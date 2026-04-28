@@ -46,3 +46,26 @@ export function formatDealEndsIn(iso: string | null, nowMs: number = Date.now())
   }
   return `Ends in ${h}h ${m}m`;
 }
+
+/**
+ * Countdown ``HH : MM : SS`` from total time remaining (hours not capped at 24).
+ * Returns null when ``iso`` is missing, invalid, or already past.
+ */
+export function formatDealCountdownColons(
+  iso: string | null,
+  nowMs: number = Date.now()
+): string | null {
+  if (iso == null || iso.trim() === '') {
+    return null;
+  }
+  const end = new Date(iso).getTime();
+  if (Number.isNaN(end) || end <= nowMs) {
+    return null;
+  }
+  const totalSec = Math.floor((end - nowMs) / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(h)} : ${pad(m)} : ${pad(s)}`;
+}

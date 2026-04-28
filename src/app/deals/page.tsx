@@ -1,34 +1,22 @@
-import type { Metadata } from 'next';
-import { FloatingContact } from '@/components/layout/FloatingContact';
-import { SiteFooter } from '@/components/layout/SiteFooter';
 import { SiteHeader } from '@/components/layout/SiteHeader';
+import { SiteFooter } from '@/components/layout/SiteFooter';
+import { FloatingContact } from '@/components/layout/FloatingContact';
+import { DealsCatalogSidebar } from '@/components/deals/DealsCatalogSidebar';
 import { ActiveDealsInfiniteList } from '@/components/deals/ActiveDealsInfiniteList';
-import { SearchResultsSidebar } from '@/components/deals/SearchResultsSidebar';
-import { DealSearchBarForm } from '@/components/marketing/DealSearchBarForm';
 import { getActiveDeals } from '@/services/api/deals';
 import { parseActiveDealsBrowseFromSearchParams } from '@/lib/deals/parse-active-deals-browse-query';
-import { getSiteOrigin } from '@/utils/site-origin';
 import {
-  normalizeDealSortParam,
+  normalizeCatalogSortParam,
   normalizeLootDealsParam,
   normalizeMaxPriceParam,
-  normalizeMinDiscountParam,
-  normalizeStoreParam,
 } from '@/constants/deal-browse-filters';
 import { isDealCategorySlug } from '@/constants/deal-categories';
 import type { ActiveDealsFilterParams } from '@/components/deals/ActiveDealsInfiniteList';
 
-export const metadata: Metadata = {
-  title: 'Search deals',
-  description: 'Search hand-picked coupons and discounts from top stores.',
-};
-
-type SearchPageProps = {
+type DealsCatalogPageProps = {
   searchParams: Promise<{
     q?: string;
     category?: string;
-    store?: string;
-    min_disc?: string;
     max_price?: string;
     loot?: string;
     sort?: string;
@@ -37,86 +25,65 @@ type SearchPageProps = {
 
 const PAGE_SIZE = 12;
 
-export default async function SearchResultsPage({ searchParams }: SearchPageProps) {
+export default async function DealsCatalogPage({ searchParams }: DealsCatalogPageProps) {
   const sp = await searchParams;
   const q = typeof sp.q === 'string' ? sp.q.trim() : '';
   const categoryRaw = typeof sp.category === 'string' ? sp.category : '';
   const categoryNorm = categoryRaw.trim().toLowerCase();
   const categoryForFilter = isDealCategorySlug(categoryNorm) ? categoryNorm : null;
-  const appliedStore = normalizeStoreParam(typeof sp.store === 'string' ? sp.store : '');
-  const appliedMinDiscount = normalizeMinDiscountParam(
-    typeof sp.min_disc === 'string' ? sp.min_disc : ''
-  );
-  const appliedMaxPrice = normalizeMaxPriceParam(
-    typeof sp.max_price === 'string' ? sp.max_price : ''
-  );
+  const appliedMaxPrice = normalizeMaxPriceParam(typeof sp.max_price === 'string' ? sp.max_price : '');
   const appliedLootOnly = normalizeLootDealsParam(typeof sp.loot === 'string' ? sp.loot : '');
-  const sortFromUrl = typeof sp.sort === 'string' ? sp.sort : undefined;
-  const appliedSort = normalizeDealSortParam(
-    sortFromUrl ?? (q.length > 0 ? 'relevance' : undefined)
-  );
+  const appliedSort = normalizeCatalogSortParam(typeof sp.sort === 'string' ? sp.sort : '');
+
   const browse = parseActiveDealsBrowseFromSearchParams({
     page: '1',
     pageSize: String(PAGE_SIZE),
     q: q || undefined,
     category: categoryRaw || undefined,
-    store: typeof sp.store === 'string' ? sp.store : undefined,
     max_price: typeof sp.max_price === 'string' ? sp.max_price : undefined,
-    min_disc: typeof sp.min_disc === 'string' ? sp.min_disc : undefined,
     loot: typeof sp.loot === 'string' ? sp.loot : undefined,
     sort: typeof sp.sort === 'string' ? sp.sort : undefined,
   });
 
-  const origin = await getSiteOrigin();
   const result = await getActiveDeals(browse);
 
   const filterParams: ActiveDealsFilterParams = {};
-  if (q) filterParams.q = q;
-  if (categoryForFilter) filterParams.category = categoryForFilter;
-  if (appliedStore) filterParams.store = appliedStore;
-  if (appliedMaxPrice != null) filterParams.max_price = String(appliedMaxPrice);
-  if (appliedMinDiscount != null) filterParams.min_disc = String(appliedMinDiscount);
-  if (appliedLootOnly) filterParams.loot = '1';
-  if (appliedSort && appliedSort !== 'newest') filterParams.sort = appliedSort;
+  if (q) {
+    filterParams.q = q;
+  }
+  if (categoryForFilter) {
+    filterParams.category = categoryForFilter;
+  }
+  if (appliedMaxPrice != null) {
+    filterParams.max_price = String(appliedMaxPrice);
+  }
+  if (appliedLootOnly) {
+    filterParams.loot = '1';
+  }
+  if (appliedSort) {
+    filterParams.sort = appliedSort;
+  }
 
   return (
     <div className="flex min-h-dvh min-w-0 max-w-full flex-col bg-[#f3f4f6] text-gray-900">
       <SiteHeader fullWidth />
 
       <main className="mx-auto w-full max-w-full flex-1 px-4 py-6 sm:px-6 lg:px-8">
-        <section className="grid items-start gap-5 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] xl:grid-cols-[20rem_minmax(0,1fr)]">
-          <SearchResultsSidebar
+        <section className="grid items-start gap-5 lg:grid-cols-[18rem_minmax(0,1fr)]">
+          <DealsCatalogSidebar
             searchQuery={q}
             activeCategorySlug={categoryForFilter}
             activeMaxPrice={appliedMaxPrice}
-            activeMinDiscount={appliedMinDiscount}
             activeLootOnly={appliedLootOnly}
+            activeSort={appliedSort}
           />
 
           <div className="min-w-0">
-            <div className="mb-6 flex justify-center">
-              <DealSearchBarForm
-                inputId="search-page-q"
-                defaultQuery={q}
-                className="w-full max-w-xl"
-                preserve={{
-                  category: categoryRaw || null,
-                  maxPrice: appliedMaxPrice,
-                  minDiscount: appliedMinDiscount,
-                  lootDeals: appliedLootOnly,
-                }}
-              />
-            </div>
-
             <header className="mb-4">
-              <div>
-                <p className="text-lg font-black text-[#0B1340]">
-                  {q ? `Search results for “${q}”` : 'Search deals'}
-                </p>
-                <p className="mt-1 max-w-2xl text-sm text-gray-600">
-                  Refine with filters on the left; use Show more to load additional matching products here.
-                </p>
-              </div>
+              <p className="text-lg font-black text-[#0B1340]">Algorithmically Vetted Hot Deals</p>
+              <p className="mt-1 max-w-2xl text-sm text-gray-600">
+                Discover top-rated offers curated by our AI and verified by the community.
+              </p>
             </header>
 
             {!result.ok ? (
@@ -127,12 +94,11 @@ export default async function SearchResultsPage({ searchParams }: SearchPageProp
             ) : result.deals.length === 0 ? (
               <div className="rounded-lg border border-dashed border-gray-300 bg-white px-6 py-14 text-center">
                 <p className="text-lg font-semibold text-gray-900">No deals match these filters.</p>
-                <p className="mt-2 text-sm text-gray-500">Try a different keyword or clear some filters.</p>
+                <p className="mt-2 text-sm text-gray-500">Try clearing filters or broadening your category.</p>
               </div>
             ) : (
               <ActiveDealsInfiniteList
                 variant="catalog"
-                siteOrigin={origin}
                 initialDeals={result.deals}
                 initialPage={result.page}
                 totalPages={result.totalPages}

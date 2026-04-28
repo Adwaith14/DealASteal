@@ -9,6 +9,12 @@ import { ExpandableDealsSection } from '@/components/deals/ExpandableDealsSectio
 import { LatestDealsSection } from '@/components/deals/LatestDealsSection';
 import { DealBrowseView } from '@/components/deals/DealBrowseView';
 import { BestDealHero } from '@/components/sections/BestDealHero';
+import { ActiveDealsInfiniteList } from '@/components/deals/ActiveDealsInfiniteList';
+import { HomeMarketingHero } from '@/components/marketing/HomeMarketingHero';
+import { FlashSalesSection } from '@/components/marketing/FlashSalesSection';
+import { HomeCategoryTiles } from '@/components/marketing/HomeCategoryTiles';
+import { CuratedForYouSection } from '@/components/marketing/CuratedForYouSection';
+import { HomeFaqSection } from '@/components/marketing/HomeFaqSection';
 import {
   getExpiringDeals,
   getCouponDeals,
@@ -16,6 +22,7 @@ import {
   getHotDeals,
   getLatestDeals,
   getBestDealOfDay,
+  getCuratedDeals,
 } from '@/services/api/deals-sections';
 import { getActiveDeals } from '@/services/api/deals';
 import { getSiteOrigin } from '@/utils/site-origin';
@@ -30,10 +37,13 @@ import {
 } from '@/constants/deal-browse-filters';
 import { isDealCategorySlug } from '@/constants/deal-categories';
 import { collectUniqueSectionFetchErrors } from '@/utils/collect-unique-section-fetch-errors';
+import { parseActiveDealsBrowseFromSearchParams } from '@/lib/deals/parse-active-deals-browse-query';
+import type { ActiveDealsFilterParams } from '@/components/deals/ActiveDealsInfiniteList';
+
+const HOME_BROWSE_PAGE_SIZE = 10;
 
 type HomePageProps = {
   searchParams: Promise<{
-    page?: string;
     q?: string;
     category?: string;
     store?: string;
@@ -47,8 +57,6 @@ type HomePageProps = {
 export default async function HomePage({ searchParams }: HomePageProps) {
   const sp = await searchParams;
 
-  const rawPage = Number.parseInt(sp.page ?? '1', 10);
-  const page = Number.isFinite(rawPage) && rawPage >= 1 ? rawPage : 1;
   const q = typeof sp.q === 'string' ? sp.q.trim() : '';
   const categoryRaw = typeof sp.category === 'string' ? sp.category : '';
   const categoryNorm = categoryRaw.trim().toLowerCase();
@@ -79,20 +87,42 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
   /* ── Search / filter mode ── */
   if (isSearchMode) {
-    const result = await getActiveDeals({
-      page,
-      query: q,
-      category: categoryRaw,
-      store: appliedStore ?? undefined,
-      minDiscount: appliedMinDiscount ?? undefined,
-      maxPrice: appliedMaxPrice ?? undefined,
-      lootOnly: appliedLootOnly || undefined,
-      sort: appliedSort,
+    const browse = parseActiveDealsBrowseFromSearchParams({
+      page: '1',
+      pageSize: String(HOME_BROWSE_PAGE_SIZE),
+      q: q || undefined,
+      category: categoryRaw || undefined,
+      store: typeof sp.store === 'string' ? sp.store : undefined,
+      min_disc: typeof sp.min_disc === 'string' ? sp.min_disc : undefined,
+      max_price: typeof sp.max_price === 'string' ? sp.max_price : undefined,
+      loot: typeof sp.loot === 'string' ? sp.loot : undefined,
     });
+    });
+    const result = await getActiveDeals(browse);
+
+    const filterParams: ActiveDealsFilterParams = {};
+    if (q) {
+      filterParams.q = q;
+    }
+    if (categoryForFilter) {
+      filterParams.category = categoryForFilter;
+    }
+    if (appliedStore) {
+      filterParams.store = appliedStore;
+    }
+    if (appliedMinDiscount != null) {
+      filterParams.min_disc = String(appliedMinDiscount);
+    }
+    if (appliedMaxPrice != null) {
+      filterParams.max_price = String(appliedMaxPrice);
+    }
+    if (appliedLootOnly) {
+      filterParams.loot = '1';
+    }
 
     return (
-      <div className="flex min-h-dvh min-w-0 max-w-full flex-col bg-[#f5f5f5] text-gray-900">
-        <SiteHeader initialSearchQuery={q} />
+      <div className="flex min-h-dvh min-w-0 max-w-full flex-col bg-white text-gray-900">
+        <SiteHeader />
         <HomeHeroSection>
           <HomeFilterBar
             listBasePath="/"
@@ -108,9 +138,40 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           />
         </HomeHeroSection>
 
-        <PageWithAdRails className="flex-1 px-3 pb-8 pt-4 sm:px-4 lg:px-6">
+        <PageWithAdRails className="flex-1 pb-8 pt-4">
           <main id="main-content" className="w-full">
-          <DealBrowseView result={result} origin={origin} q={q} listBasePath="/" />
+            <div className="mb-6">
+              <h1 className="text-xl font-extrabold text-[#0B1340] sm:text-2xl">
+                {q ? `Results for "${q}"` : 'Browse Deals'}
+              </h1>
+              {result.ok && (
+                <p className="mt-1 text-sm text-gray-500">
+                  {result.totalCount} deal{result.totalCount !== 1 ? 's' : ''} found
+                </p>
+              )}
+            </div>
+
+            {!result.ok ? (
+              <div role="alert" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-4 text-amber-950">
+                <p className="font-semibold">Could not load deals right now.</p>
+                <p className="mt-1 text-sm">{result.error}</p>
+              </div>
+            ) : result.deals.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-gray-300 bg-white px-6 py-14 text-center">
+                <p className="text-lg font-semibold text-gray-900">No deals match your search.</p>
+                <p className="mt-2 text-sm text-gray-500">Try different keywords or clear the search.</p>
+              </div>
+            ) : (
+              <ActiveDealsInfiniteList
+                variant="home"
+                siteOrigin={origin}
+                initialDeals={result.deals}
+                initialPage={result.page}
+                totalPages={result.totalPages}
+                pageSize={HOME_BROWSE_PAGE_SIZE}
+                filterParams={filterParams}
+              />
+            )}
           </main>
         </PageWithAdRails>
 
@@ -126,7 +187,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [expiringSection, couponSection, topResult, hotResult, latestResult, bestDealResult, forYouDeals] =
+  const [expiringSection, couponSection, topResult, hotResult, latestResult, bestDealResult, forYouDeals, newestCurated, popularCurated, biggestCurated] =
     await Promise.all([
       getExpiringDeals(20),
       getCouponDeals(16),
@@ -135,6 +196,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       getLatestDeals({ page: 1, pageSize: 36 }),
       getBestDealOfDay(),
       user ? getForUser(user.id, 12) : Promise.resolve([]),
+      getCuratedDeals('newest', 10),
+      getCuratedDeals('popular', 10),
+      getCuratedDeals('biggest_drop', 10),
     ]);
 
   const sectionFetchErrors = collectUniqueSectionFetchErrors(
@@ -143,52 +207,47 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     topResult.fetchError,
     hotResult.fetchError,
     latestResult.fetchError,
-    bestDealResult.fetchError
+    bestDealResult.fetchError,
+    newestCurated.fetchError,
+    popularCurated.fetchError,
+    biggestCurated.fetchError
   );
 
-  const couponCodeMap = new Map<string, string>(
-    couponSection.deals.map((d) => [d.id, d.coupon_code])
-  );
+  const curatedBuckets = {
+    newest: newestCurated.deals,
+    popular: popularCurated.deals,
+    biggest_drop: biggestCurated.deals,
+  };
 
   return (
     <div className="flex min-h-dvh min-w-0 max-w-full flex-col bg-[#f5f5f5] text-gray-900">
       <SiteHeader initialSearchQuery="" />
-      <HomeHeroSection>
-        <HomeFilterBar
-          searchQuery=""
-          activeCategorySlug={null}
-          activeStore={null}
-          activeMinDiscount={null}
-          activeMaxPrice={null}
-          activeLootOnly={false}
-          activeSort="newest"
-          panel
-          affiliateNote
-        />
-      </HomeHeroSection>
+      <HomeMarketingHero />
 
-      <PageWithAdRails className="flex-1 px-3 pb-8 pt-3 sm:px-4 lg:px-6">
+      <PageWithAdRails className="flex-1 pb-8 pt-2">
         <main id="main-content" className="w-full">
-        {sectionFetchErrors.length > 0 ? (
-          <div
-            role="alert"
-            className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-950 sm:px-4"
-          >
-            <p className="font-semibold">Some deal sections could not load.</p>
-            {sectionFetchErrors.length === 1 ? (
-              <p className="mt-1 text-xs leading-relaxed sm:text-sm">{sectionFetchErrors[0]}</p>
-            ) : (
-              <ul className="mt-2 list-inside list-disc space-y-1 text-xs leading-relaxed sm:text-sm">
-                {sectionFetchErrors.map((msg) => (
-                  <li key={msg}>{msg}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-        ) : null}
+          {sectionFetchErrors.length > 0 ? (
+            <div
+              role="alert"
+              className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-950 sm:px-4"
+            >
+              <p className="font-semibold">Some deal sections could not load.</p>
+              {sectionFetchErrors.length === 1 ? (
+                <p className="mt-1 text-xs leading-relaxed sm:text-sm">{sectionFetchErrors[0]}</p>
+              ) : (
+                <ul className="mt-2 list-inside list-disc space-y-1 text-xs leading-relaxed sm:text-sm">
+                  {sectionFetchErrors.map((msg) => (
+                    <li key={msg}>{msg}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ) : null}
 
         <BestDealHero deal={bestDealResult.deal} origin={origin} />
 
+        <HomeCategoryTiles />
+        
         {forYouDeals.length > 0 ? (
           <HorizontalDealScroll
             icon="✨"
@@ -199,14 +258,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           />
         ) : null}
 
-        {/* ── Expiring Soon ── */}
-        <HorizontalDealScroll
-          icon="⏱"
-          title="Expiring Soon"
-          subtitle="Grab them before they're gone"
-          deals={expiringSection.deals}
-          origin={origin}
-        />
+        <FlashSalesSection deals={expiringSection.deals} />
 
         {/* ── Coupon Deals ── */}
         <HorizontalDealScroll
@@ -215,8 +267,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           subtitle="Use code at checkout"
           deals={couponSection.deals}
           origin={origin}
-          couponCodes={couponCodeMap}
         />
+
+        <CuratedForYouSection buckets={curatedBuckets} />
 
         {/* ── Top Deals ── */}
         <ExpandableDealsSection
@@ -234,12 +287,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           origin={origin}
         />
 
-        {/* ── Latest Deals ── */}
-        <LatestDealsSection
-          initialDeals={latestResult.deals}
-          total={latestResult.total}
-          origin={origin}
-        />
+        <HomeFaqSection />
         </main>
       </PageWithAdRails>
 
