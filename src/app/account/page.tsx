@@ -58,7 +58,7 @@ export default async function AccountPage() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-[#f5f5f5] text-gray-900">
-      <SiteHeader initialSearchQuery="" />
+      <SiteHeader />
       <main id="main-content" className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6">
         <div className="flex flex-col gap-4 border-b border-gray-200 pb-6 sm:flex-row sm:items-end sm:justify-between">
           <div>

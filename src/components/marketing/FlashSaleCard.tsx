@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import type { DealWithMerchantName } from '@/types/database.types';
+import type { Deal } from '@/types/database.types';
 import { DealImagePlaceholderIcon } from '@/components/deals/deal-image-placeholder';
 import { FlashSaleCountdown } from '@/components/marketing/FlashSaleCountdown';
 
@@ -15,7 +15,7 @@ function formatMoney(value: number): string {
 }
 
 type FlashSaleCardProps = {
-  deal: DealWithMerchantName;
+  deal: Deal;
   priority?: boolean;
 };
 
@@ -23,7 +23,7 @@ export function FlashSaleCard({ deal, priority = false }: FlashSaleCardProps) {
   const discountPct = Math.round(deal.discount_percentage);
   const imageUrl = deal.image_url?.trim() ?? '';
   const hasImage = imageUrl.length > 0;
-  const retailer = deal.merchant_name?.trim() || 'Store';
+  const retailer = 'Store';
 
   return (
     <article className="flex w-[min(100%,11.5rem)] min-w-0 shrink-0 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm sm:w-[13.5rem]">

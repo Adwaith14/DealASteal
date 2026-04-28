@@ -2,11 +2,11 @@
 
 import { useState, useCallback } from 'react';
 import Link from 'next/link';
-import type { DealWithMerchantName } from '@/types/database.types';
+import type { Deal } from '@/types/database.types';
 import { FlashSaleCard } from '@/components/marketing/FlashSaleCard';
 
 type FlashSalesSectionProps = {
-  deals: DealWithMerchantName[];
+  deals: Deal[];
 };
 
 export function FlashSalesSection({ deals: initialDeals }: FlashSalesSectionProps) {

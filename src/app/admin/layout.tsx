@@ -12,7 +12,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (String(process.env.DEALS_ADMIN_SCHEMA ?? '').trim() !== '1') {
     return (
       <div className="flex min-h-dvh flex-col bg-[#f5f5f5] text-gray-900">
-        <SiteHeader initialSearchQuery="" />
+        <SiteHeader />
         <main id="main-content" className="flex flex-1 flex-col px-4 py-10 sm:px-6">
           <div className="mx-auto max-w-lg rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
             Admin UI needs migration <code className="font-mono">20260501100000_phase23_admin_console.sql</code> and{' '}
@@ -31,7 +31,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     }
     return (
       <div className="flex min-h-dvh flex-col bg-[#f5f5f5] text-gray-900">
-        <SiteHeader initialSearchQuery="" />
+        <SiteHeader />
         <main id="main-content" className="flex flex-1 flex-col px-4 py-10 sm:px-6">
           <h1 className="text-xl font-semibold">Forbidden</h1>
           <p className="mt-2 text-sm text-gray-600">
@@ -46,7 +46,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="flex min-h-dvh flex-col bg-[#f5f5f5] text-gray-900">
-      <SiteHeader initialSearchQuery="" />
+      <SiteHeader />
       <main id="main-content" className="flex flex-1 flex-col px-4 py-8 sm:px-6">
         <div className="mx-auto w-full max-w-5xl">{children}</div>
       </main>

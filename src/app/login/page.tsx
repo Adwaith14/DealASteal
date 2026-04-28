@@ -31,7 +31,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
   return (
     <div className="flex min-h-dvh flex-col bg-[#f5f5f5] text-gray-900">
-      <SiteHeader initialSearchQuery="" />
+      <SiteHeader />
       <main id="main-content" className="flex flex-1 flex-col px-4 py-10 sm:px-6">
         <LoginForm redirectNext={redirectNext} initialError={initialError} />
         <p className="mx-auto mt-8 max-w-md text-center text-sm text-gray-600">

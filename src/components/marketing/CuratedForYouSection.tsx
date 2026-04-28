@@ -1,8 +1,8 @@
-import type { DealWithMerchantName } from '@/types/database.types';
+import type { Deal } from '@/types/database.types';
 import type { CuratedSortMode } from '@/services/api/deals-sections';
 import { CuratedDealGridSection } from '@/components/marketing/CuratedDealGridSection';
 
-export type CuratedBuckets = Record<CuratedSortMode, DealWithMerchantName[]>;
+export type CuratedBuckets = Record<CuratedSortMode, Deal[]>;
 
 const SECTIONS: {
   id: string;

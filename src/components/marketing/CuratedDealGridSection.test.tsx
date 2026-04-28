@@ -2,7 +2,7 @@
 import type { ReactNode } from 'react';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { DealWithMerchantName } from '@/types/database.types';
+import type { Deal } from '@/types/database.types';
 import { CuratedDealGridSection } from './CuratedDealGridSection';
 
 vi.mock('next/link', () => ({
@@ -20,7 +20,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function deal(id: string, title: string): DealWithMerchantName {
+function deal(id: string, title: string): Deal {
   return {
     id,
     merchant_id: 'm1',

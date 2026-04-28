@@ -2,7 +2,7 @@
 import type { ReactNode } from 'react';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { DealWithMerchantName } from '@/types/database.types';
+import type { Deal } from '@/types/database.types';
 import { CuratedForYouSection } from './CuratedForYouSection';
 
 vi.mock('next/link', () => ({
@@ -19,7 +19,7 @@ afterEach(() => {
   cleanup();
 });
 
-function deal(id: string, title: string): DealWithMerchantName {
+function deal(id: string, title: string): Deal {
   return {
     id,
     merchant_id: 'm1',

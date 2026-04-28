@@ -61,7 +61,7 @@ export function PushNotifyOptIn() {
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidKey),
+        applicationServerKey: urlBase64ToUint8Array(vapidKey) as any,
       });
       const res = await fetch('/api/me/push-subscribe', {
         method: 'POST',

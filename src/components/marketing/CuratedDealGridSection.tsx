@@ -2,12 +2,12 @@
 
 import { useCallback, useState } from 'react';
 import type { CuratedSortMode } from '@/services/api/deals-sections';
-import type { DealWithMerchantName } from '@/types/database.types';
+import type { Deal } from '@/types/database.types';
 import { CuratedDealCard } from '@/components/marketing/CuratedDealCard';
 
 type CuratedExpandResponse = {
   ok?: boolean;
-  deals?: DealWithMerchantName[];
+  deals?: Deal[];
   error?: string;
 };
 
@@ -16,7 +16,7 @@ type CuratedDealGridSectionProps = {
   headingId: string;
   label: string;
   mode: CuratedSortMode;
-  initialDeals: DealWithMerchantName[];
+  initialDeals: Deal[];
 };
 
 const DEFAULT_EXPAND_LIMIT = 20;

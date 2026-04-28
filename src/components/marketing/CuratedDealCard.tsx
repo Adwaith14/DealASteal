@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import type { DealWithMerchantName } from '@/types/database.types';
+import type { Deal } from '@/types/database.types';
 import { DealImagePlaceholderIcon } from '@/components/deals/deal-image-placeholder';
 import { formatDealListedAgo } from '@/utils/deal-time';
 
@@ -15,7 +15,7 @@ function formatMoney(value: number): string {
 }
 
 type CuratedDealCardProps = {
-  deal: DealWithMerchantName;
+  deal: Deal;
   priority?: boolean;
 };
 
