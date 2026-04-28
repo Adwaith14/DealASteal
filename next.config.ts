@@ -176,6 +176,4 @@ const nextConfig: NextConfig = {
 
 export default withSentryConfig(withSerwist(nextConfig), {
   silent: true,
-  hideSourceMaps: true,
-  widenClientFileUpload: true,
 });

@@ -36,7 +36,7 @@ function deal(id: string, title: string): Deal {
     created_at: '2026-01-01T12:00:00.000Z',
     category_slug: null,
     ingest_external_id: null,
-    merchant_name: 'Test Store',
+
   };
 }
 
