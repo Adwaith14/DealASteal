@@ -4,7 +4,7 @@ import { PageWithAdRails } from '@/components/layout/PageWithAdRails';
 import { SiteFooter } from '@/components/layout/SiteFooter';
 import { SiteHeader } from '@/components/layout/SiteHeader';
 import { HomeFilterBar } from '@/components/deals/HomeFilterBar';
-import { DealBrowseView } from '@/components/deals/DealBrowseView';
+
 import { BestDealsMarquee } from '@/components/deals/BestDealsMarquee';
 import { ActiveDealsInfiniteList } from '@/components/deals/ActiveDealsInfiniteList';
 import { HomeMarketingHero } from '@/components/marketing/HomeMarketingHero';
